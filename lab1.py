@@ -38,7 +38,7 @@ robot.head.move_by('head_pan', np.radians(45))  # Move head pan
 robot.head.move_by('head_tilt', np.radians(45)) # Move head tilt
 robot.push_command() 
 robot.head.wait_until_at_setpoint()
-
+    
 
 robot.stow()
 robot.arm.wait_until_at_setpoint()
