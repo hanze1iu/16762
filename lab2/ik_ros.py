@@ -9,7 +9,7 @@ import rclpy
 
 # NOTE before running: `python3 -m pip install --upgrade ikpy graphviz urchin networkx`
 
-target_point = [-0.043, -0.441, 0.654]
+target_point = [0.53, -0.441, 0.2]
 target_orientation = ikpy.utils.geometry.rpy_matrix(0.0, 0.0, -np.pi/2) # [roll, pitch, yaw]
 
 
@@ -47,8 +47,7 @@ class IKNode:
         names_of_links_to_remove = ['link_right_wheel', 'link_left_wheel', 'caster_link', 'link_head', 'link_head_pan', 'link_head_tilt', 'link_aruco_right_base', 'link_aruco_left_base', 'link_aruco_shoulder', 'link_aruco_top_wrist', 'link_aruco_inner_wrist', 'camera_bottom_screw_frame', 'camera_link', 'camera_depth_frame', 'camera_depth_optical_frame', 'camera_infra1_frame', 'camera_infra1_optical_frame', 'camera_infra2_frame', 'camera_infra2_optical_frame', 'camera_color_frame', 'camera_color_optical_frame', 'camera_accel_frame', 'camera_accel_optical_frame', 'camera_gyro_frame', 'camera_gyro_optical_frame', 'gripper_camera_bottom_screw_frame', 'gripper_camera_link', 'gripper_camera_depth_frame', 'gripper_camera_depth_optical_frame', 'gripper_camera_infra1_frame', 'gripper_camera_infra1_optical_frame', 'gripper_camera_infra2_frame', 'gripper_camera_infra2_optical_frame', 'gripper_camera_color_frame', 'gripper_camera_color_optical_frame', 'laser', 'base_imu', 'respeaker_base', 'link_wrist_quick_connect', 'link_gripper_finger_right', 'link_gripper_fingertip_right', 'link_aruco_fingertip_right', 'link_gripper_finger_left', 'link_gripper_fingertip_left', 'link_aruco_fingertip_left', 'link_aruco_d405', 'link_head_nav_cam']
         # links_kept = ['base_link', 'link_mast', 'link_lift', 'link_arm_l4', 'link_arm_l3', 'link_arm_l2', 'link_arm_l1', 'link_arm_l0', 'link_wrist_yaw', 'link_wrist_yaw_bottom', 'link_wrist_pitch', 'link_wrist_roll', 'link_gripper_s3_body', 'link_grasp_center']
         links_to_remove = [l for l in modified_urdf._links if l.name in names_of_links_to_remove]
-        for lr in links_to_remove:
-            modified_urdf._links.remove(lr)
+        modified_urdf._links.remove(lr)
         names_of_joints_to_remove = ['joint_right_wheel', 'joint_left_wheel', 'caster_joint', 'joint_head', 'joint_head_pan', 'joint_head_tilt', 'joint_aruco_right_base', 'joint_aruco_left_base', 'joint_aruco_shoulder', 'joint_aruco_top_wrist', 'joint_aruco_inner_wrist', 'camera_joint', 'camera_link_joint', 'camera_depth_joint', 'camera_depth_optical_joint', 'camera_infra1_joint', 'camera_infra1_optical_joint', 'camera_infra2_joint', 'camera_infra2_optical_joint', 'camera_color_joint', 'camera_color_optical_joint', 'camera_accel_joint', 'camera_accel_optical_joint', 'camera_gyro_joint', 'camera_gyro_optical_joint', 'gripper_camera_joint', 'gripper_camera_link_joint', 'gripper_camera_depth_joint', 'gripper_camera_depth_optical_joint', 'gripper_camera_infra1_joint', 'gripper_camera_infra1_optical_joint', 'gripper_camera_infra2_joint', 'gripper_camera_infra2_optical_joint', 'gripper_camera_color_joint', 'gripper_camera_color_optical_joint', 'joint_laser', 'joint_base_imu', 'joint_respeaker', 'joint_wrist_quick_connect', 'joint_gripper_finger_right', 'joint_gripper_fingertip_right', 'joint_aruco_fingertip_right', 'joint_gripper_finger_left', 'joint_gripper_fingertip_left', 'joint_aruco_fingertip_left', 'joint_aruco_d405', 'joint_head_nav_cam'] 
         # joints_kept = ['joint_mast', 'joint_lift', 'joint_arm_l4', 'joint_arm_l3', 'joint_arm_l2', 'joint_arm_l1', 'joint_arm_l0', 'joint_wrist_yaw', 'joint_wrist_yaw_bottom', 'joint_wrist_pitch', 'joint_wrist_roll', 'joint_gripper_s3_body', 'joint_grasp_center']
         joints_to_remove = [l for l in modified_urdf._joints if l.name in names_of_joints_to_remove]
@@ -92,7 +91,26 @@ class IKNode:
         new_urdf_path = "/tmp/iktutorial/stretch.urdf"
         modified_urdf.save(new_urdf_path)
 
-        chain = ikpy.chain.Chain.from_urdf_file(new_urdf_path)
+        active_links_mask = [
+            False,  # 0:  Base link (fixed)
+            True,   # 1:  joint_base_rotation (revolute)
+            True,   # 2:  joint_base_translation (prismatic)
+            False,  # 3:  joint_mast (fixed)
+            True,   # 4:  joint_lift (prismatic)
+            False,  # 5:  joint_arm_l4 (fixed)
+            True,   # 6:  joint_arm_l3 (prismatic)
+            True,   # 7:  joint_arm_l2 (prismatic)
+            True,   # 8:  joint_arm_l1 (prismatic)
+            True,   # 9:  joint_arm_l0 (prismatic)
+            True,   # 10: joint_wrist_yaw (revolute)
+            False,  # 11: joint_wrist_yaw_bottom (fixed)
+            True,   # 12: joint_wrist_pitch (revolute)
+            True,   # 13: joint_wrist_roll (revolute)
+            False,  # 14: joint_gripper_s3_body (fixed)
+            False,  # 15: joint_grasp_center (fixed)
+        ]
+
+        chain = ikpy.chain.Chain.from_urdf_file(new_urdf_path, active_links_mask=active_links_mask)
 
         for link in chain.links:
             print(f"* Link Name: {link.name}, Type: {link.joint_type}")
@@ -123,15 +141,16 @@ class IKNode:
         q_yaw = q[10]
         q_pitch = q[12]
         q_roll = q[13]
-        self.node.move_to_pose({'rotate_mobile_base': q_rotation})
-        self.node.move_to_pose({'translate_mobile_base': q_translation})
         self.node.move_to_pose({
         'joint_lift': q_lift,
         'joint_arm': q_arm,
         'joint_wrist_yaw': q_yaw,
         'joint_wrist_pitch': q_pitch,
         'joint_wrist_roll': q_roll
-    })
+        })
+        self.node.move_to_pose({'rotate_mobile_base': q_rotation})
+        self.node.move_to_pose({'translate_mobile_base': q_translation})
+
 
     def move_to_grasp_goal(self, target_point, target_orientation):
         q_init = self.get_current_configuration()
@@ -152,17 +171,15 @@ class IKNode:
 
 
 def main():
-    rclpy.init()
-    
-    try:
-        ik_node = IKNode()
-        ik_node.move_to_grasp_goal(target_point, target_orientation)
-        print("Current grasp pose:")
-        print(ik_node.get_current_grasp_pose())
-    except KeyboardInterrupt:
-        pass
-    finally:
-        rclpy.shutdown()
+   
+    ik_node = IKNode()
+    # ik_node.node.stow_the_robot()
+    ik_node.move_to_grasp_goal(target_point, target_orientation)
+    print("Current grasp pose:")
+    print(ik_node.get_current_grasp_pose())
+
+    ik_node.node.destroy_node()
+    rclpy.shutdown()
 
 
 if __name__ == '__main__':
