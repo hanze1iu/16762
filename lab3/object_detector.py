@@ -144,7 +144,7 @@ class YOLOEObjectDetector(Node):
         target = detections[target_idx]
         cx,cy = target['centroid']
         depth = self.latest_depth[cy, cx]
-        xyz = detection_utils.pixel_to_3d(cx, cy, depth, self.latest_color_cam_info)
+        xyz = detection_utils.pixel_to_3d((cx, cy), depth, self.latest_color_cam_info)
         self.goal_pose_msg = detection_utils.get_pose_msg(
             self.latest_color_cam_info.header.stamp,
             self.latest_color_cam_info.header.frame_id,
