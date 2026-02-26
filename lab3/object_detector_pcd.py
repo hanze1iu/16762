@@ -89,8 +89,10 @@ class YOLOEObjectDetector(Node):
 
 
         try:
-            self.latest_color = cv2.rotate(self.bridge.imgmsg_to_cv2(color_msg, desired_encoding='bgr8'),cv2.ROTATE_90_CLOCKWISE)
-            self.latest_depth = cv2.rotate(self.bridge.imgmsg_to_cv2(depth_msg, 'passthrough'),cv2.ROTATE_90_CLOCKWISE)
+            # Do NOT rotate: camera intrinsics in camera_info match the original (unrotated) image.
+            # Rotating the image but not the intrinsics causes incorrect 3D projection.
+            self.latest_color = self.bridge.imgmsg_to_cv2(color_msg, desired_encoding='bgr8')
+            self.latest_depth = self.bridge.imgmsg_to_cv2(depth_msg, 'passthrough')
             self.latest_color_cam_info = color_cam_info_msg
 
 
@@ -149,8 +151,15 @@ class YOLOEObjectDetector(Node):
             if len(detections) == 0:
                 return
         target = detections[target_idx]
-        mask = target['mask']
-        ys, xs = np.where(mask)
+        mask_polygon = target['mask']  # Nx2 polygon vertices, NOT a binary mask
+
+        # Rasterize the polygon into a binary mask image so we can iterate all interior pixels.
+        # np.where directly on the polygon array gives wrong results (only col indices 0 or 1).
+        h, w = self.latest_depth.shape[:2]
+        mask_binary = np.zeros((h, w), dtype=np.uint8)
+        cv2.fillPoly(mask_binary, [mask_polygon], 1)
+        ys, xs = np.where(mask_binary)
+
         points_3d = []
         for x, y in zip(xs, ys):
             depth = self.latest_depth[y, x]
