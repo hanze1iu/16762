@@ -116,7 +116,7 @@ def get_current_configuration(joint_state):
     q_rotation = 0.0
     q_translation = 0.0
     q_lift = bound_range('joint_lift', joint_state['joint_lift'])
-    q_arml = bound_range('joint_arm_l0', joint_state['joint_arm_l0'])
+    q_arml = bound_range('joint_arm_l0', joint_state['joint_arm'] / 4.0)
     q_yaw = bound_range('joint_wrist_yaw', joint_state['joint_wrist_yaw'])
     q_pitch = bound_range('joint_wrist_pitch', joint_state['joint_wrist_pitch'])
     q_roll = bound_range('joint_wrist_roll', joint_state['joint_wrist_roll'])
@@ -132,15 +132,12 @@ def get_current_grasp_pose():
 def get_grasp_goal(target_point, target_orientation, q_init):
     # previously the move_to_grasp() function from lab 2
     #   moved to it's own function without the final move_to_configuration() call for convenience in this lab
-    # orientation_mode=None: only constrain position, not orientation.
-    # orientation_mode='all' fails when ready pose orientation is far from the identity target,
-    # causing the optimizer to sacrifice position accuracy to satisfy orientation → error > 1cm.
-    q_soln = chain.inverse_kinematics(target_point, orientation_mode=None, initial_position=q_init)
+    q_soln = chain.inverse_kinematics(target_point, target_orientation, orientation_mode='all', initial_position=q_init)
     # print('Solution:', q_soln)
     print("Solution Found")
 
     err = np.linalg.norm(chain.forward_kinematics(q_soln)[:3, 3] - target_point)
-    if not np.isclose(err, 0.0, atol=3e-2):
+    if not np.isclose(err, 0.0, atol=1e-2):
         print("IKPy did not find a valid solution")
         return
     # move_to_configuration(q=q_soln)
@@ -164,12 +161,8 @@ def move_to_configuration(node, q):
         'joint_wrist_pitch': q_pitch,
         'joint_wrist_roll': q_roll
     })
-    # Only move the base if the IK solution requires a significant displacement.
-    # This prevents the base from doing all the work for small waypoint steps.
-    if abs(q_rotation) > 0.1:   # threshold: 0.1 rad (~6 degrees)
-        node.move_to_pose({'rotate_mobile_base': q_rotation})
-    if abs(q_translation) > 0.05:  # threshold: 5 cm
-        node.move_to_pose({'translate_mobile_base': q_translation})
+    node.move_to_pose({'rotate_mobile_base': q_rotation})
+    node.move_to_pose({'translate_mobile_base': q_translation})
     # TODO: -------------- end ---------------
 
 def print_q(q):

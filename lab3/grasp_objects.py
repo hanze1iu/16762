@@ -131,10 +131,21 @@ class IKTargetFollowing(HelloNode):
 
     def move_to_ready_pose(self):
         # TODO: minor - uncomment the correct ready pose for part 1 or 2!
-        #   part 1: 
+        #   part 1:
         # self.move_to_pose(ik.READY_POSE_P1, blocking=True)
         #   part 2: READY_POSE_P2
-        self.move_to_pose(ik.READY_POSE_P2, blocking=True)
+        # Send arm/body joints and head joints separately so both are properly executed.
+        self.move_to_pose({
+            'joint_lift': ik.READY_POSE_P2['joint_lift'],
+            'joint_arm_l0': ik.READY_POSE_P2['joint_arm_l0'],
+            'joint_wrist_yaw': ik.READY_POSE_P2['joint_wrist_yaw'],
+            'joint_wrist_pitch': ik.READY_POSE_P2['joint_wrist_pitch'],
+            'gripper_aperture': ik.READY_POSE_P2['gripper_aperture'],
+        }, blocking=True)
+        self.move_to_pose({
+            'joint_head_pan': ik.READY_POSE_P2['joint_head_pan'],
+            'joint_head_tilt': ik.READY_POSE_P2['joint_head_tilt'],
+        }, blocking=True)
 
     def main(self):
         HelloNode.main(self, 'follow_target', 'follow_target', wait_for_first_pointcloud=False)
