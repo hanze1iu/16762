@@ -116,7 +116,7 @@ def get_current_configuration(joint_state):
     q_rotation = 0.0
     q_translation = 0.0
     q_lift = bound_range('joint_lift', joint_state['joint_lift'])
-    q_arml = bound_range('joint_arm_l0', joint_state['joint_arm'] / 4.0)
+    q_arml = bound_range('joint_arm_l0', joint_state['joint_arm_l0'])
     q_yaw = bound_range('joint_wrist_yaw', joint_state['joint_wrist_yaw'])
     q_pitch = bound_range('joint_wrist_pitch', joint_state['joint_wrist_pitch'])
     q_roll = bound_range('joint_wrist_roll', joint_state['joint_wrist_roll'])
