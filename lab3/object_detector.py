@@ -119,7 +119,7 @@ class YOLOEObjectDetector(Node):
         # get the goal pose and publish it, if it exists
         self.get_goal_pose(detections)
 
-        if self.pose_msg is None:
+        if self.goal_pose_msg is None:
             print("OBJECT NOT DETECTED, no pose to publish")
             return
         else:
