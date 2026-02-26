@@ -89,10 +89,8 @@ class YOLOEObjectDetector(Node):
 
 
         try:
-            # Do NOT rotate: camera intrinsics in camera_info match the original (unrotated) image.
-            # Rotating the image but not the intrinsics causes incorrect 3D projection.
-            self.latest_color = self.bridge.imgmsg_to_cv2(color_msg, desired_encoding='bgr8')
-            self.latest_depth = self.bridge.imgmsg_to_cv2(depth_msg, 'passthrough')
+            self.latest_color = cv2.rotate(self.bridge.imgmsg_to_cv2(color_msg, desired_encoding='bgr8'), cv2.ROTATE_90_CLOCKWISE)
+            self.latest_depth = cv2.rotate(self.bridge.imgmsg_to_cv2(depth_msg, 'passthrough'), cv2.ROTATE_90_CLOCKWISE)
             self.latest_color_cam_info = color_cam_info_msg
 
 
@@ -155,16 +153,23 @@ class YOLOEObjectDetector(Node):
 
         # Rasterize the polygon into a binary mask image so we can iterate all interior pixels.
         # np.where directly on the polygon array gives wrong results (only col indices 0 or 1).
-        h, w = self.latest_depth.shape[:2]
-        mask_binary = np.zeros((h, w), dtype=np.uint8)
+        h_rot, w_rot = self.latest_depth.shape[:2]
+        mask_binary = np.zeros((h_rot, w_rot), dtype=np.uint8)
         cv2.fillPoly(mask_binary, [mask_polygon], 1)
-        ys, xs = np.where(mask_binary)
+        ys_rot, xs_rot = np.where(mask_binary)
+
+        # camera_info intrinsics are for the ORIGINAL (unrotated) image.
+        # After ROTATE_90_CLOCKWISE: (x_rot, y_rot) -> original (x_orig, y_orig) via:
+        #   x_orig = y_rot,  y_orig = H_orig - 1 - x_rot
+        h_orig = self.latest_color_cam_info.height
 
         points_3d = []
-        for x, y in zip(xs, ys):
-            depth = self.latest_depth[y, x]
+        for x_rot, y_rot in zip(xs_rot, ys_rot):
+            depth = self.latest_depth[y_rot, x_rot]
             if depth > 0:
-                xyz = detection_utils.pixel_to_3d((x, y), depth, self.latest_color_cam_info)
+                x_orig = y_rot
+                y_orig = h_orig - 1 - x_rot
+                xyz = detection_utils.pixel_to_3d((x_orig, y_orig), depth, self.latest_color_cam_info)
                 points_3d.append(xyz)
         if len(points_3d) == 0:
             return
