@@ -69,7 +69,7 @@ def get_modified_urdf():
                                        joint_type='revolute',
                                        axis=np.array([0.0, 0.0, 1.0]),
                                        origin=np.eye(4, dtype=np.float64),
-                                       limit=urdfpy.JointLimit(effort=100.0, velocity=1.0, lower=-0.2, upper=0.2))
+                                       limit=urdfpy.JointLimit(effort=100.0, velocity=1.0, lower=-1.0, upper=1.0))
     modified_urdf._joints.append(joint_base_rotation)
     # TODO: -------------- end ---------------
 
