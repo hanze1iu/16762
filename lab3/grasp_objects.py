@@ -121,6 +121,10 @@ class IKTargetFollowing(HelloNode):
         else:
             waypoint_pos = goal_pos
 
+        # Never approach from below — clamp waypoint z to be at least goal z.
+        # This prevents the arm from going under the table edge before lifting.
+        waypoint_pos[2] = max(waypoint_pos[2], goal_pos[2])
+
         # TODO: -------------- end ---------------
 
         # use an zero rotation for the waypoint (its a point so we don't need to worry about orientation)
