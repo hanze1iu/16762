@@ -75,6 +75,7 @@ class IKTargetFollowing(HelloNode):
             return
 
         waypoint_pos, waypoint_orient = self.compute_waypoint_to_goal(goal_pos, gripper_pos)
+        print(f"goal_pos: {np.round(goal_pos, 3)}  gripper_pos: {np.round(gripper_pos, 3)}  waypoint: {np.round(waypoint_pos, 3)}")
 
         # TODO: ------------- start --------------
         # fill with your response
