@@ -22,9 +22,11 @@ import numpy as np
 
 
 class YOLOEObjectDetector(Node):
-    def __init__(self, obj_queries):
+    def __init__(self, obj_queries, target_obj=None):
         super().__init__('yoloe_object_detector')
         self.visualize = True
+        # target object to grasp; if None, defaults to the first detection
+        self.target_obj = target_obj
 
         # ----------- Camera Streaming Setup -----------
 
@@ -119,7 +121,7 @@ class YOLOEObjectDetector(Node):
         # get the goal pose and publish it, if it exists
         self.get_goal_pose(detections)
 
-        if self.pose_msg is None:
+        if self.goal_pose_msg is None:
             print("OBJECT NOT DETECTED, no pose to publish")
             return
         else:
@@ -141,14 +143,27 @@ class YOLOEObjectDetector(Node):
         #   save that message to self.goal_pose_msg
         # in part 2, edit the code you wrote for part 1 to now project all points in the mask to 3D,
         #   then get the centroid of the resulting pointcloud to use as the goal pose (instead of the 2D centroid in part 1)
+        # filter detections to only the target object if one is specified
+        if self.target_obj is not None:
+            detections = [d for d in detections if d['label'] == self.target_obj]
+            if len(detections) == 0:
+                return
         target = detections[target_idx]
-        cx,cy = target['centroid']
-        depth = self.latest_depth[cy, cx]
-        xyz = detection_utils.pixel_to_3d(cx, cy, depth, self.latest_color_cam_info)
+        mask = target['mask']
+        ys, xs = np.where(mask)
+        points_3d = []
+        for x, y in zip(xs, ys):
+            depth = self.latest_depth[y, x]
+            if depth > 0:
+                xyz = detection_utils.pixel_to_3d((x, y), depth, self.latest_color_cam_info)
+                points_3d.append(xyz)
+        if len(points_3d) == 0:
+            return
+        centroid_3d = np.mean(points_3d, axis=0)
         self.goal_pose_msg = detection_utils.get_pose_msg(
             self.latest_color_cam_info.header.stamp,
             self.latest_color_cam_info.header.frame_id,
-            xyz
+            centroid_3d
         )
         # TODO: -------------- end ---------------
 
@@ -160,8 +175,10 @@ if __name__ == '__main__':
     with open('object_queries.yaml', 'r') as file:
         config = yaml.safe_load(file)
         obj_queries = config['queries']
+        # read the target object to grasp (optional field in yaml)
+        target_obj = config.get('target', None)
 
-    yolo_object_detector = YOLOEObjectDetector(obj_queries)
+    yolo_object_detector = YOLOEObjectDetector(obj_queries, target_obj)
     rclpy.spin(yolo_object_detector)
     yolo_object_detector.destroy_node()
     rclpy.shutdown()

@@ -97,6 +97,12 @@ class IKTargetFollowing(HelloNode):
         if q_soln is not None:
             ik.move_to_configuration(self, q_soln)
 
+            # if gripper is close enough to goal, grasp the object
+            dist = np.linalg.norm(goal_pos - gripper_pos)
+            if dist <= self.delta:
+                self.move_to_pose({'gripper_aperture': -0.2}, blocking=True)
+                self.move_to_pose({'joint_arm': 0.0}, blocking=True)
+
     def compute_waypoint_to_goal(self, goal_pos, gripper_pos):
 
         # TODO: ------------- start --------------
@@ -125,9 +131,9 @@ class IKTargetFollowing(HelloNode):
     def move_to_ready_pose(self):
         # TODO: minor - uncomment the correct ready pose for part 1 or 2!
         #   part 1: 
-        self.move_to_pose(ik.READY_POSE_P1, blocking=True)
+        # self.move_to_pose(ik.READY_POSE_P1, blocking=True)
         #   part 2: READY_POSE_P2
-        # self.move_to_pose(ik.READY_POSE_P2, blocking=True)
+        self.move_to_pose(ik.READY_POSE_P2, blocking=True)
 
     def main(self):
         HelloNode.main(self, 'follow_target', 'follow_target', wait_for_first_pointcloud=False)
