@@ -132,12 +132,12 @@ def get_current_grasp_pose():
 def get_grasp_goal(target_point, target_orientation, q_init):
     # previously the move_to_grasp() function from lab 2
     #   moved to it's own function without the final move_to_configuration() call for convenience in this lab
-    q_soln = chain.inverse_kinematics(target_point, target_orientation, orientation_mode='all', initial_position=q_init)
+    q_soln = chain.inverse_kinematics(target_point, target_orientation, orientation_mode=None, initial_position=q_init)
     # print('Solution:', q_soln)
     print("Solution Found")
 
     err = np.linalg.norm(chain.forward_kinematics(q_soln)[:3, 3] - target_point)
-    if not np.isclose(err, 0.0, atol=1e-2):
+    if not np.isclose(err, 0.0, atol=3e-2):
         print("IKPy did not find a valid solution")
         return
     # move_to_configuration(q=q_soln)
@@ -161,8 +161,11 @@ def move_to_configuration(node, q):
         'joint_wrist_pitch': q_pitch,
         'joint_wrist_roll': q_roll
     })
-    node.move_to_pose({'rotate_mobile_base': q_rotation})
-    node.move_to_pose({'translate_mobile_base': q_translation})
+    # Only move base if displacement is large enough to avoid camera losing sight of object
+    if abs(q_rotation) > 0.1:   # threshold: ~6 degrees
+        node.move_to_pose({'rotate_mobile_base': q_rotation})
+    if abs(q_translation) > 0.05:  # threshold: 5 cm
+        node.move_to_pose({'translate_mobile_base': q_translation})
     # TODO: -------------- end ---------------
 
 def print_q(q):
