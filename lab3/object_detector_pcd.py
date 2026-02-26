@@ -110,7 +110,7 @@ class YOLOEObjectDetector(Node):
         # TODO: -------------- end ---------------
 
         # create visualizations from the detections
-        if self.visualize:
+        if self.visualize and self.latest_color is not None:
             detection_utils.visualize_detections_masks(
                 # TODO: minor - change the part= arg when you edit your code for part 2! 
                 #   adjusts the color scaling of the depth image display to match the camera range
