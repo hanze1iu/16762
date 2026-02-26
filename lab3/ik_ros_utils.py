@@ -161,7 +161,7 @@ def move_to_configuration(node, q):
         'joint_wrist_yaw': q_yaw,
         'joint_wrist_pitch': q_pitch,
         'joint_wrist_roll': q_roll
-    }, blocking=True)
+    })
     # Only move base if displacement is large enough to avoid camera losing sight of object
     if abs(q_rotation) > 0.1:   # threshold: ~6 degrees
         node.move_to_pose({'rotate_mobile_base': q_rotation})

@@ -137,7 +137,7 @@ class IKTargetFollowing(HelloNode):
         # Send arm/body joints and head joints separately so both are properly executed.
         self.move_to_pose({
             'joint_lift': ik.READY_POSE_P2['joint_lift'],
-            'joint_arm_l0': ik.READY_POSE_P2['joint_arm_l0'],
+            'joint_arm': ik.READY_POSE_P2['joint_arm_l0'],
             'joint_wrist_yaw': ik.READY_POSE_P2['joint_wrist_yaw'],
             'joint_wrist_pitch': ik.READY_POSE_P2['joint_wrist_pitch'],
             'gripper_aperture': ik.READY_POSE_P2['gripper_aperture'],
