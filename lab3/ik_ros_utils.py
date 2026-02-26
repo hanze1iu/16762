@@ -16,9 +16,9 @@ READY_POSE_P1 = {
 READY_POSE_P2 = {
     'joint_lift': 0.8 ,
     'joint_arm_l0': 0.0,
-    'joint_wrist_yaw': 0.0,
+    'joint_wrist_yaw': 0.5,
     'joint_wrist_pitch': -0.1,
-    'gripper_aperture': 0.5,
+    'gripper_aperture': 0.8,
     'joint_head_pan':-1.6,
     'joint_head_tilt':-0.5,
 }
@@ -154,13 +154,14 @@ def move_to_configuration(node, q):
     q_yaw = q[10]
     q_pitch = q[12]
     q_roll = q[13]
+    # Move lift first to correct height, then extend arm so the arm doesn't collide
+    node.move_to_pose({'joint_lift': q_lift}, blocking=True)
     node.move_to_pose({
-        'joint_lift': q_lift,
         'joint_arm': q_arm,
         'joint_wrist_yaw': q_yaw,
         'joint_wrist_pitch': q_pitch,
         'joint_wrist_roll': q_roll
-    })
+    }, blocking=True)
     # Only move base if displacement is large enough to avoid camera losing sight of object
     if abs(q_rotation) > 0.1:   # threshold: ~6 degrees
         node.move_to_pose({'rotate_mobile_base': q_rotation})
