@@ -69,7 +69,7 @@ def get_modified_urdf():
                                        joint_type='revolute',
                                        axis=np.array([0.0, 0.0, 1.0]),
                                        origin=np.eye(4, dtype=np.float64),
-                                       limit=urdfpy.JointLimit(effort=100.0, velocity=1.0, lower=-1.0, upper=1.0))
+                                       limit=urdfpy.JointLimit(effort=100.0, velocity=1.0, lower=-0.5, upper=0.5))
     modified_urdf._joints.append(joint_base_rotation)
     # TODO: -------------- end ---------------
 
@@ -79,7 +79,7 @@ def get_modified_urdf():
                                         joint_type='prismatic',
                                         axis=np.array([1.0, 0.0, 0.0]),
                                         origin=np.eye(4, dtype=np.float64),
-                                        limit=urdfpy.JointLimit(effort=100.0, velocity=1.0, lower=-0.1, upper=0.1))
+                                        limit=urdfpy.JointLimit(effort=100.0, velocity=1.0, lower=-0.5, upper=0.5))
     modified_urdf._joints.append(joint_base_translation)
     link_base_translation = urdfpy.Link(name='link_base_translation',
                                         inertial=None,
@@ -161,8 +161,12 @@ def move_to_configuration(node, q):
         'joint_wrist_pitch': q_pitch,
         'joint_wrist_roll': q_roll
     })
-    node.move_to_pose({'rotate_mobile_base': q_rotation})
-    node.move_to_pose({'translate_mobile_base': q_translation})
+    # Only move the base if the IK solution requires a significant displacement.
+    # This prevents the base from doing all the work for small waypoint steps.
+    if abs(q_rotation) > 0.1:   # threshold: 0.1 rad (~6 degrees)
+        node.move_to_pose({'rotate_mobile_base': q_rotation})
+    if abs(q_translation) > 0.05:  # threshold: 5 cm
+        node.move_to_pose({'translate_mobile_base': q_translation})
     # TODO: -------------- end ---------------
 
 def print_q(q):
