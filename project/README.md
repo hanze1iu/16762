@@ -159,46 +159,45 @@ object_zones:
 
 ### M1 — SLAM Mapping + Semantic Annotation
 
-**Step 1: Build the SLAM map (run on Stretch)**
+**Step 1: Build the SLAM map**
+
+Only 2 terminals needed — `offline_mapping.launch.py` already includes SLAM + RViz:
 
 ```bash
 # Terminal 1 — robot driver
 ros2 launch stretch_core stretch_driver.launch.py
 
-# Terminal 2 — SLAM toolbox (online async mode, builds map while you drive)
-ros2 launch stretch_nav2 online_async_launch.py
-
-# Terminal 3 — RViz to watch the map grow
-ros2 run rviz2 rviz2 -d `ros2 pkg prefix --share stretch_calibration`/rviz/stretch_simple_test.rviz
-
-# Terminal 4 — teleoperate the robot through the whole space
-#   Option A (Xbox controller, already in mm2026/stretch_python/):
-python3 mm2026/stretch_python/stretch_xbox_controller_teleop.py
-#   Option B (keyboard):
-ros2 run teleop_twist_keyboard teleop_twist_keyboard
+# Terminal 2 — offline SLAM mapping (includes RViz, teleop keyboard by default)
+ros2 launch stretch_nav2 offline_mapping.launch.py
 ```
 
-Drive the robot through every area you want to include.
-Once satisfied with map coverage:
+Drive the robot through every area you want to include (RViz shows the map building in real time).
+Once happy with coverage, save in a **new terminal**:
 
 ```bash
-# Terminal 5 — save the map
-ros2 run nav2_map_server map_saver_cli -f final_project/map/ai_maker_space
-# → writes:  final_project/map/ai_maker_space.pgm
-#            final_project/map/ai_maker_space.yaml
+# Terminal 3 — save the map to the standard Stretch maps directory
+mkdir ${HELLO_FLEET_PATH}/maps
+ros2 run nav2_map_server map_saver_cli -f ${HELLO_FLEET_PATH}/maps/ai_maker_space
+# → writes:  ai_maker_space.pgm
+#            ai_maker_space.yaml
+
+# Verify the map looks correct
+eog ${HELLO_FLEET_PATH}/maps/ai_maker_space.pgm
 ```
 
 **Step 2: Record semantic zone coordinates**
 
+> This is a **continuation of the same session** — no need to go back to the robot a second time.
+> T1 keeps running. T2 switches from mapping to navigation. T3 switches to the annotator.
+
 ```bash
-# Terminal 1 — robot driver  (keep running)
-# Terminal 2 — Nav2 with saved map
-ros2 launch stretch_nav2 navigation.launch.py map:=final_project/map/ai_maker_space.yaml
+# Terminal 1 — robot driver (keep running, nothing to change)
 
-# Terminal 3 — RViz  (keep open, use "2D Pose Estimate" to localise first)
+# Terminal 2 — Ctrl-C offline_mapping, then reuse the same pane for Nav2
+ros2 launch stretch_nav2 navigation.launch.py map:=${HELLO_FLEET_PATH}/maps/ai_maker_space.yaml
 
-# Terminal 4 — annotator node
-cd final_project
+# Terminal 3 — reuse the same pane for the annotator
+cd ~/path/to/final_project
 python3 map_annotator.py
 ```
 
@@ -272,13 +271,33 @@ python3 fetch.py "coffee mug" --dropoff table
 
 ### M3 — Search Behavior
 
-> **Status: TODO**
+> **Status: CODE DONE — pending M1 map + robot test**
 
-- [ ] Write `search_behavior.py`
-- [ ] Phase 1: sweep `joint_head_pan` full range, run YOLO-E on each frame, return 3D pose if found
-- [ ] Phase 2: `follow_waypoints(orbit_waypoints)` + rescan at each stop
-- [ ] Return `goal_pose: PoseStamped | None`
-- [ ] Plug into `fetch.py` `search_zone()` stub
+**Files written:**
+- `final_project/search_behavior.py` — `SearchBehavior` class
+
+**What it does:**
+- Attaches head-camera subscribers (`/camera/color`, `/camera/aligned_depth_to_color`, `/camera/color/camera_info`) to the FetchNode
+- Phase 1: sweeps `joint_head_pan` across 6 positions (HEAD_PAN_MIN → HEAD_PAN_MAX), runs YOLO-E at each stop, returns 3D goal pose on first detection
+- Phase 2: navigates each `orbit_waypoints` via `nav.go_to()`, repeats 3-position sweep at each stop
+- 3D pose: rasterises the YOLO mask polygon → projects all interior pixels with valid depth → pointcloud centroid (lab 3 Part 2 approach)
+- TF-transforms result from camera frame → `base_link` before returning
+- Returns `PoseStamped` in `base_link`, or `None` if nothing found
+
+**Plugged into fetch.py:**
+- `FetchNode` now extends `HelloNode` (handles ROS2 init + background spin)
+- `SearchBehavior(self, nav, obj_name)` is created inside `FetchNode.run()`
+- M4/M5 are still stubs in fetch.py
+
+**To test (after M1 map is ready):**
+```bash
+cd final_project
+python3 fetch.py "water bottle"   # should navigate → sweep → print detection result
+```
+- [ ] Confirm head sweep runs without errors
+- [ ] Confirm YOLO-E detects the object (check confidence / frame issues)
+- [ ] Confirm 3D centroid is reasonable (print xyz before TF transform)
+- [ ] Confirm orbit waypoints are reached if Phase 1 fails
 
 ---
 
