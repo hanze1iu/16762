@@ -241,31 +241,76 @@ object_zones:
 - [ ] Drop-off coordinates recorded
 - [ ] `object_zones` filled in `semantic_map.yaml`
 
+> **Status: TODO — running on robot 2025-04-12**
+
+---
+
 ### M2 — CLI + Navigation to Zone
-- [ ] Write `fetch.py`: parse `sys.argv`, load `semantic_map.yaml`, look up zone
-- [ ] Write `navigation_utils.py`: wrap Nav2 `BasicNavigator` (reuse lab 4 pattern)
-- [ ] Test: robot navigates to zone center on command
+
+> **Status: CODE DONE — pending M1 map to test on robot**
+
+**Files written:**
+- `final_project/fetch.py` — CLI entry point, full pipeline skeleton with M3/M4/M5 stubs
+- `final_project/navigation_utils.py` — Nav2 `BasicNavigator` wrapper (`go_to`, `follow_waypoints`)
+
+**What works now:**
+- `python3 fetch.py "water bottle"` loads the map, resolves object → zone(s), navigates to each zone nav_point in priority order
+- If nav to a zone fails it skips to the next zone automatically
+- Search / grasp / place are stubs that print placeholders until M3–M5 are filled in
+
+**To test once M1 map is ready:**
+```bash
+cd final_project
+python3 fetch.py "water bottle"          # default drop-off
+python3 fetch.py "coffee mug" --dropoff table
+```
+- [ ] Confirm robot reaches zone nav_point correctly
+- [ ] Confirm correct zone is selected for each object name
+- [ ] Confirm error message when object name is not in `semantic_map.yaml`
+
+---
 
 ### M3 — Search Behavior
+
+> **Status: TODO**
+
 - [ ] Write `search_behavior.py`
-- [ ] Phase 1: command `joint_head_pan` sweep, run YOLO-E, return 3D pose if found
-- [ ] Phase 2: orbit waypoints + rescan
-- [ ] Return `(found: bool, pose: PoseStamped | None)`
+- [ ] Phase 1: sweep `joint_head_pan` full range, run YOLO-E on each frame, return 3D pose if found
+- [ ] Phase 2: `follow_waypoints(orbit_waypoints)` + rescan at each stop
+- [ ] Return `goal_pose: PoseStamped | None`
+- [ ] Plug into `fetch.py` `search_zone()` stub
+
+---
 
 ### M4 — Grasp Pipeline
+
+> **Status: TODO**
+
 - [ ] Write `grasp_pipeline.py`: wrap lab 3 `object_detector_pcd` + `grasp_objects` logic
 - [ ] Input: 3D goal pose in `base_link` frame
 - [ ] Output: object grasped, arm retracted to carry pose
+- [ ] Plug into `fetch.py` `grasp_object()` stub
 - [ ] Test: robot finds and grasps object from static position
 
+---
+
 ### M5 — Transport + Placement
-- [ ] After grasp, hold arm in stow/carry configuration
-- [ ] Navigate to `dropoffs.<target>` via Nav2
+
+> **Status: TODO**
+
+- [ ] After grasp, retract arm to carry pose before navigating
+- [ ] Navigate to drop-off via `nav.go_to()`  *(nav code already in fetch.py)*
 - [ ] Lower arm to table height, open gripper, stow arm
+- [ ] Plug into `fetch.py` `place_object()` stub
 - [ ] Test: object placed at drop-off
 
+---
+
 ### M6 — Integration + End-to-End Testing
-- [ ] Wire all modules together in `fetch.py`
+
+> **Status: TODO**
+
+- [ ] Replace all stubs in `fetch.py` with real M3/M4/M5 calls
 - [ ] Test with 3+ different objects in 2+ zones
 - [ ] Record video for presentation
 
