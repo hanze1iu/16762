@@ -1,0 +1,13 @@
+# list of serveral objects to detect
+#    most useful when you're trying to determine what object will work best for tracking
+#    (consistent detection, good depth values, etc.)
+queries:
+  # # - red robot toy # small, unique object (hard to prompt), inconsistent detection
+  # # - black water bottle # reflective metal surface, poor depth values
+  # - black coffee mug
+  # - pink cat figure
+  - yellow cup
+  - white cylinder
+  - blue ball
+target: blue ball
+  
