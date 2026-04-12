@@ -1,0 +1,29 @@
+dropoffs: {}
+zones:
+  <desk1>:
+    description: ''
+    nav_point:
+      x: 2.32
+      y: -0.647
+      yaw: 0.0
+    orbit_waypoints:
+    - x: 2.433
+      y: -1.235
+      yaw: 0.0
+    - x: 2.145
+      y: -0.71
+      yaw: 0.0
+    - x: 2.383
+      y: -0.791
+      yaw: 0.0
+  <desk2>:
+    description: ''
+    nav_point:
+      x: 0.0
+      y: 0.0
+      yaw: 0.0
+    orbit_waypoints:
+    - x: 2.389
+      y: -0.779
+      yaw: 0.0
+object_zones: {}

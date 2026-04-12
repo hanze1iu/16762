@@ -16,7 +16,7 @@ READY_POSE_P1 = {
 READY_POSE_P2 = {
     'joint_lift': 0.8 ,
     'joint_arm_l0': 0.0,
-    'joint_wrist_yaw': 0.5,
+    'joint_wrist_yaw': 1.5,
     'joint_wrist_pitch': -0.1,
     'gripper_aperture': 0.8,
     'joint_head_pan':-1.6,
