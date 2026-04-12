@@ -50,10 +50,10 @@ def load_yaml(path):
             data = yaml.safe_load(f) or {}
     except FileNotFoundError:
         data = {}
-    # Ensure top-level keys exist
-    data.setdefault('dropoffs', {})
-    data.setdefault('zones', {})
-    data.setdefault('object_zones', {})
+    # Ensure top-level keys exist (use 'or {}' to handle None values from yaml)
+    data['dropoffs'] = data.get('dropoffs') or {}
+    data['zones'] = data.get('zones') or {}
+    data['object_zones'] = data.get('object_zones') or {}
     return data
 
 
