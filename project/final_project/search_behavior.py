@@ -144,6 +144,11 @@ class SearchBehavior:
             self.latest_cam_info = cam_info_msg
             self._new_frame.set()
 
+        # Always show live camera feed (detections overlaid when available)
+        detection_utils.visualize_detections_masks(
+            part=2, detections=None, rgb_image=color, depth_image=depth
+        )
+
     # ------------------------------------------------------------------
     # Detection helpers
     # ------------------------------------------------------------------
