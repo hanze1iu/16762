@@ -228,41 +228,33 @@ class SearchBehavior:
         return np.mean(points_3d, axis=0)
 
     # ------------------------------------------------------------------
-    # 360-degree base spin search
+    # Head sweep search
     # ------------------------------------------------------------------
 
-    def _spin_search(self) -> 'PoseStamped | None':
+    def _head_sweep(self, n_steps: int) -> 'PoseStamped | None':
         """
-        Rotate the robot base 360 degrees in SPIN_STEPS increments.
-        Runs YOLO-E detection at each stop.
-        Head is fixed forward and slightly down throughout.
+        Sweep joint_head_pan from HEAD_PAN_MIN to HEAD_PAN_MAX in n_steps.
+        Runs YOLO-E at each stop.
         Returns PoseStamped on first detection, or None.
         """
-        # Fix head forward and slightly down
-        self.node.move_to_pose(
-            {'joint_head_pan': -1.6, 'joint_head_tilt': HEAD_TILT},
-            blocking=True,
-        )
+        pan_angles = np.linspace(HEAD_PAN_MIN, HEAD_PAN_MAX, n_steps)
 
-        delta = 2 * np.pi / self.SPIN_STEPS  # radians per step
-
-        for step in range(self.SPIN_STEPS):
-            print(f'[SEARCH] Spin step {step+1}/{self.SPIN_STEPS} '
-                  f'({np.degrees(step * delta):.0f}°) ...')
-
+        for pan in pan_angles:
             self.node.move_to_pose(
-                {'rotate_mobile_base': delta},
+                {'joint_head_pan': float(pan), 'joint_head_tilt': HEAD_TILT},
                 blocking=True,
             )
             time.sleep(self.SETTLE_SEC)
 
             if not self._wait_for_fresh_frame():
-                self.node.get_logger().warn('[SEARCH] No camera frame, skipping step.')
+                self.node.get_logger().warn(
+                    f'[SEARCH] No camera frame at pan={np.degrees(pan):.1f}°, skipping.'
+                )
                 continue
 
             pose = self._detect_current_frame()
             if pose is not None:
-                print(f'[SEARCH] "{self.obj_name}" detected at step {step+1}.')
+                print(f'[SEARCH] "{self.obj_name}" detected at head_pan={np.degrees(pan):.1f}°')
                 return pose
 
         return None
