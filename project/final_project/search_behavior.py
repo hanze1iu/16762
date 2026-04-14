@@ -80,8 +80,7 @@ class SearchBehavior:
         Plain-text name passed to YOLO-E's set_classes(), e.g. "water bottle".
     """
 
-    # How many steps to divide the 360-degree base spin into
-    SPIN_STEPS = 8   # 8 × 45° = 360°
+    PHASE1_STEPS = 6   # head sweep steps (HEAD_PAN_MIN → HEAD_PAN_MAX)
 
     # Seconds to wait for a fresh camera frame after rotating
     FRAME_WAIT_SEC = 1.5
