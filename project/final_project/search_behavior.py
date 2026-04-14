@@ -1,7 +1,8 @@
 """
 search_behavior.py
 ==================
-Head-sweep search using the same detection pattern as lab3.
+Head-sweep search. SearchBehavior extends Node (same as lab3 YOLOEObjectDetector)
+and spins on its own thread so camera callbacks are guaranteed to fire.
 """
 
 import time
@@ -10,7 +11,11 @@ import os.path as osp
 
 import cv2
 import numpy as np
+import rclpy
+from rclpy.node import Node
 import tf2_ros
+import message_filters
+
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import PoseStamped
@@ -38,22 +43,24 @@ HEAD_TILT      = -0.6
 CONF_THRESHOLD =  0.25
 MIN_DEPTH_MM   =  200
 MAX_DEPTH_MM   =  3000
-
-PHASE1_STEPS   =  6      # pan positions across full head range
-SETTLE_SEC     =  0.5    # wait after moving head
-FRAME_WAIT_SEC =  2.0    # timeout waiting for camera frame
+PHASE1_STEPS   =  6
+SETTLE_SEC     =  0.8
+FRAME_WAIT_SEC =  3.0
 
 
 # ---------------------------------------------------------------------------
-# SearchBehavior  (same camera setup as lab3 object_detector_pcd.py)
+# SearchBehavior — extends Node, same architecture as lab3
 # ---------------------------------------------------------------------------
 
-class SearchBehavior:
+class SearchBehavior(Node):
 
-    def __init__(self, node, nav: Navigator, obj_name: str):
-        self.node     = node
-        self.obj_name = obj_name
-        self.nav      = nav
+    def __init__(self, hello_node, nav: Navigator, obj_name: str):
+        # Own Node with unique name — has its own executor + spin
+        super().__init__('search_behavior_node')
+
+        self.hello_node = hello_node   # for move_to_pose / arm control
+        self.nav        = nav
+        self.obj_name   = obj_name
 
         # YOLO-E  — same as lab3
         self.model = YOLO(MODEL_PATH)
@@ -67,54 +74,59 @@ class SearchBehavior:
         self._frame_lock           = threading.Lock()
         self._new_frame            = threading.Event()
 
-        # Independent subscribers (no synchronizer — avoids HelloNode executor blocking)
-        node.create_subscription(Image,      COLOR_TOPIC,    self._color_cb,    10)
-        node.create_subscription(Image,      DEPTH_TOPIC,    self._depth_cb,    10)
-        node.create_subscription(CameraInfo, CAM_INFO_TOPIC, self._cam_info_cb, 10)
+        # Subscribers + synchroniser  — identical to lab3
+        self.color_sub = message_filters.Subscriber(self, Image, COLOR_TOPIC)
+        self.depth_sub = message_filters.Subscriber(self, Image, DEPTH_TOPIC)
+        self.color_cam_info_sub = message_filters.Subscriber(self, CameraInfo, CAM_INFO_TOPIC)
+        self.synchronizer = message_filters.ApproximateTimeSynchronizer(
+            [self.color_sub, self.depth_sub, self.color_cam_info_sub],
+            queue_size=10,
+            slop=0.05,
+        )
+        self.synchronizer.registerCallback(self.image_callback)
 
         # TF
         self.tf_buffer   = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, node)
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+
+        # Spin on own thread — same idea as rclpy.spin(node) in lab3
+        self._spin_thread = threading.Thread(target=rclpy.spin, args=(self,), daemon=True)
+        self._spin_thread.start()
+
+        print('[SEARCH] SearchBehavior node started, waiting for camera frames...')
 
     # ------------------------------------------------------------------
-    # Camera callback  — same as lab3
+    # Camera callback  — identical to lab3
     # ------------------------------------------------------------------
 
-    def _color_cb(self, msg):
+    def image_callback(self, color_msg, depth_msg, color_cam_info_msg):
         try:
             color = cv2.rotate(
-                self.bridge.imgmsg_to_cv2(msg, desired_encoding='rgb8'),
+                self.bridge.imgmsg_to_cv2(color_msg, desired_encoding='bgr8'),
+                cv2.ROTATE_90_CLOCKWISE,
+            )
+            depth = cv2.rotate(
+                self.bridge.imgmsg_to_cv2(depth_msg, 'passthrough'),
                 cv2.ROTATE_90_CLOCKWISE,
             )
         except CvBridgeError as e:
-            print(f'[SEARCH] color CvBridge error: {e}')
+            print(f'[SEARCH] CvBridge error: {e}')
             return
+
         with self._frame_lock:
-            self.latest_color = color
+            self.latest_color          = color
+            self.latest_depth          = depth
+            self.latest_color_cam_info = color_cam_info_msg
             self._new_frame.set()
+
+        # Live visualization — same as lab3
         detection_utils.visualize_detections_masks(
             part=2, detections=None,
-            rgb_image=color, depth_image=self.latest_depth,
+            rgb_image=color, depth_image=depth,
         )
 
-    def _depth_cb(self, msg):
-        try:
-            depth = cv2.rotate(
-                self.bridge.imgmsg_to_cv2(msg, 'passthrough'),
-                cv2.ROTATE_90_CLOCKWISE,
-            )
-        except CvBridgeError as e:
-            print(f'[SEARCH] depth CvBridge error: {e}')
-            return
-        with self._frame_lock:
-            self.latest_depth = depth
-
-    def _cam_info_cb(self, msg):
-        with self._frame_lock:
-            self.latest_color_cam_info = msg
-
     # ------------------------------------------------------------------
-    # Detection  — same logic as lab3 publish_goals_callback
+    # Detection  — same as lab3 publish_goals_callback
     # ------------------------------------------------------------------
 
     def _detect(self) -> 'PoseStamped | None':
@@ -125,11 +137,9 @@ class SearchBehavior:
             depth    = self.latest_depth.copy()
             cam_info = self.latest_color_cam_info
 
-        # Run YOLO-E  — same as lab3
         results    = self.model(color, conf=CONF_THRESHOLD)
         detections = detection_utils.parse_results(results)
 
-        # Show annotated frame when detections exist
         detection_utils.visualize_detections_masks(
             part=2, detections=detections,
             rgb_image=color, depth_image=depth,
@@ -138,10 +148,10 @@ class SearchBehavior:
         if not detections:
             return None
 
-        target      = detections[0]
+        target       = detections[0]
         mask_polygon = target['mask']
 
-        # 3-D centroid from pointcloud  — same as lab3 Part 2
+        # 3D centroid — lab3 Part 2
         h, w = depth.shape[:2]
         mask_bin = np.zeros((h, w), dtype=np.uint8)
         cv2.fillPoly(mask_bin, [mask_polygon], 1)
@@ -182,13 +192,12 @@ class SearchBehavior:
         pan_angles = np.linspace(HEAD_PAN_MIN, HEAD_PAN_MAX, PHASE1_STEPS)
 
         for pan in pan_angles:
-            self.node.move_to_pose(
+            self.hello_node.move_to_pose(
                 {'joint_head_pan': float(pan), 'joint_head_tilt': HEAD_TILT},
                 blocking=True,
             )
             time.sleep(SETTLE_SEC)
 
-            # Wait for fresh frame
             self._new_frame.clear()
             got_frame = self._new_frame.wait(timeout=FRAME_WAIT_SEC)
             if not got_frame:
@@ -206,7 +215,10 @@ class SearchBehavior:
         return None
 
     def _reset_head(self):
-        self.node.move_to_pose(
+        self.hello_node.move_to_pose(
             {'joint_head_pan': -1.6, 'joint_head_tilt': -0.5},
             blocking=True,
         )
+
+    def destroy(self):
+        self.destroy_node()
