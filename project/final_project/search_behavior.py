@@ -56,7 +56,7 @@ HEAD_PAN_MIN  = -3.9   # full left
 HEAD_PAN_MAX  =  1.5   # full right (toward arm side)
 HEAD_TILT     = -0.6   # looking slightly downward at table height
 
-CONF_THRESHOLD = 0.30  # YOLO-E confidence threshold
+CONF_THRESHOLD = 0.25  # YOLO-E confidence threshold (match lab3)
 MIN_DEPTH_MM   = 200   # ignore depth values below this (noise)
 MAX_DEPTH_MM   = 3000  # ignore depth values above this
 
@@ -167,7 +167,7 @@ class SearchBehavior:
             cam_info = self.latest_cam_info
 
         # YOLO-E inference (RGB expected)
-        results    = self.model(cv2.cvtColor(color, cv2.COLOR_BGR2RGB), conf=CONF_THRESHOLD)
+        results    = self.model(color, conf=CONF_THRESHOLD)  # pass BGR directly (match lab3)
         detections = detection_utils.parse_results(results)
 
         # Show live detection visualization (same as lab3)
