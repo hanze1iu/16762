@@ -31,7 +31,6 @@ import message_filters
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import PoseStamped
-from std_msgs.msg import Header
 from ultralytics import YOLO
 
 import sys, os
@@ -110,9 +109,6 @@ class SearchBehavior:
         # --- Debug image publisher ----------------------------------------
         self._debug_pub = node.create_publisher(Image, '/search/debug_image', 10)
 
-        # --- Debug image publisher (view in RViz → Add → Image → topic: /search/debug_image)
-        self._debug_pub = node.create_publisher(Image, '/search/debug_image', 10)
-
         # Register camera subscribers on the existing node
         self._color_sub = message_filters.Subscriber(node, Image, COLOR_TOPIC)
         self._depth_sub = message_filters.Subscriber(node, Image, DEPTH_TOPIC)
@@ -174,21 +170,10 @@ class SearchBehavior:
         results    = self.model(cv2.cvtColor(color, cv2.COLOR_BGR2RGB), conf=CONF_THRESHOLD)
         detections = detection_utils.parse_results(results)
 
-        # Publish annotated debug image to /search/debug_image (view in RViz)
-        debug_img = color.copy()
-        for det in (detections or []):
-            mask = det['mask']
-            label = det.get('label', self.obj_name)
-            conf  = det.get('confidence', 0.0)
-            cx, cy = det['centroid']
-            cv2.polylines(debug_img, [mask], isClosed=True, color=(0, 255, 0), thickness=2)
-            cv2.circle(debug_img, (cx, cy), 5, (0, 255, 0), -1)
-            cv2.putText(debug_img, f'{label} {conf:.2f}', (cx + 8, cy),
-                        cv2.FONT_HERSHEY_PLAIN, 1.2, (0, 255, 0), 2)
-        try:
-            self._debug_pub.publish(self.bridge.cv2_to_imgmsg(debug_img, encoding='bgr8'))
-        except CvBridgeError:
-            pass
+        # Show live detection visualization (same as lab3)
+        detection_utils.visualize_detections_masks(
+            part=2, detections=detections, rgb_image=color, depth_image=depth
+        )
 
         if not detections:
             return None
