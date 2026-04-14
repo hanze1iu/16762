@@ -11,8 +11,6 @@ import os.path as osp
 import cv2
 import numpy as np
 import tf2_ros
-import message_filters
-
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import PoseStamped
@@ -69,16 +67,10 @@ class SearchBehavior:
         self._frame_lock           = threading.Lock()
         self._new_frame            = threading.Event()
 
-        # Subscribers  — same topics and synchroniser as lab3
-        self.color_sub = message_filters.Subscriber(node, Image, COLOR_TOPIC)
-        self.depth_sub = message_filters.Subscriber(node, Image, DEPTH_TOPIC)
-        self.color_cam_info_sub = message_filters.Subscriber(node, CameraInfo, CAM_INFO_TOPIC)
-        self.synchronizer = message_filters.ApproximateTimeSynchronizer(
-            [self.color_sub, self.depth_sub, self.color_cam_info_sub],
-            queue_size=10,
-            slop=0.05,
-        )
-        self.synchronizer.registerCallback(self.image_callback)
+        # Independent subscribers (no synchronizer — avoids HelloNode executor blocking)
+        node.create_subscription(Image,      COLOR_TOPIC,    self._color_cb,    10)
+        node.create_subscription(Image,      DEPTH_TOPIC,    self._depth_cb,    10)
+        node.create_subscription(CameraInfo, CAM_INFO_TOPIC, self._cam_info_cb, 10)
 
         # TF
         self.tf_buffer   = tf2_ros.Buffer()
@@ -88,31 +80,38 @@ class SearchBehavior:
     # Camera callback  — same as lab3
     # ------------------------------------------------------------------
 
-    def image_callback(self, color_msg, depth_msg, color_cam_info_msg):
+    def _color_cb(self, msg):
         try:
             color = cv2.rotate(
-                self.bridge.imgmsg_to_cv2(color_msg, desired_encoding='rgb8'),
-                cv2.ROTATE_90_CLOCKWISE,
-            )
-            depth = cv2.rotate(
-                self.bridge.imgmsg_to_cv2(depth_msg, 'passthrough'),
+                self.bridge.imgmsg_to_cv2(msg, desired_encoding='rgb8'),
                 cv2.ROTATE_90_CLOCKWISE,
             )
         except CvBridgeError as e:
-            print(f'[SEARCH] CvBridge error: {e}')
+            print(f'[SEARCH] color CvBridge error: {e}')
             return
-
         with self._frame_lock:
-            self.latest_color          = color
-            self.latest_depth          = depth
-            self.latest_color_cam_info = color_cam_info_msg
+            self.latest_color = color
             self._new_frame.set()
-
-        # Always show live feed  (same as lab3 visualize call)
         detection_utils.visualize_detections_masks(
             part=2, detections=None,
-            rgb_image=color, depth_image=depth,
+            rgb_image=color, depth_image=self.latest_depth,
         )
+
+    def _depth_cb(self, msg):
+        try:
+            depth = cv2.rotate(
+                self.bridge.imgmsg_to_cv2(msg, 'passthrough'),
+                cv2.ROTATE_90_CLOCKWISE,
+            )
+        except CvBridgeError as e:
+            print(f'[SEARCH] depth CvBridge error: {e}')
+            return
+        with self._frame_lock:
+            self.latest_depth = depth
+
+    def _cam_info_cb(self, msg):
+        with self._frame_lock:
+            self.latest_color_cam_info = msg
 
     # ------------------------------------------------------------------
     # Detection  — same logic as lab3 publish_goals_callback
