@@ -118,12 +118,7 @@ class SearchBehavior(Node):
             self.latest_depth          = depth
             self.latest_color_cam_info = color_cam_info_msg
             self._new_frame.set()
-
-        # Live visualization — same as lab3
-        detection_utils.visualize_detections_masks(
-            part=2, detections=None,
-            rgb_image=color, depth_image=depth,
-        )
+        # NOTE: cv2.imshow must be called from main thread — visualize in search() instead
 
     # ------------------------------------------------------------------
     # Detection  — same as lab3 publish_goals_callback
@@ -139,11 +134,6 @@ class SearchBehavior(Node):
 
         results    = self.model(color, conf=CONF_THRESHOLD)
         detections = detection_utils.parse_results(results)
-
-        detection_utils.visualize_detections_masks(
-            part=2, detections=detections,
-            rgb_image=color, depth_image=depth,
-        )
 
         if not detections:
             return None
@@ -203,6 +193,16 @@ class SearchBehavior(Node):
             if not got_frame:
                 print(f'[SEARCH] No frame at pan={np.degrees(pan):.0f}°, skipping.')
                 continue
+
+            # Visualize from main thread (cv2.imshow must be on main thread)
+            with self._frame_lock:
+                vis_color = self.latest_color.copy() if self.latest_color is not None else None
+                vis_depth = self.latest_depth.copy() if self.latest_depth is not None else None
+            if vis_color is not None:
+                detection_utils.visualize_detections_masks(
+                    part=2, detections=None,
+                    rgb_image=vis_color, depth_image=vis_depth,
+                )
 
             pose = self._detect()
             if pose is not None:
