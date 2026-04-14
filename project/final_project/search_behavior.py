@@ -91,7 +91,7 @@ class SearchBehavior:
     def image_callback(self, color_msg, depth_msg, color_cam_info_msg):
         try:
             color = cv2.rotate(
-                self.bridge.imgmsg_to_cv2(color_msg, desired_encoding='bgr8'),
+                self.bridge.imgmsg_to_cv2(color_msg, desired_encoding='rgb8'),
                 cv2.ROTATE_90_CLOCKWISE,
             )
             depth = cv2.rotate(
