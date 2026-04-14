@@ -80,9 +80,10 @@ project/
 ├── README.md                    ← this file
 ├── final_project/
 │   ├── fetch.py                 ← CLI entry point / main orchestrator
-│   ├── search_behavior.py       ← two-phase search (head scan + orbit)
-│   ├── grasp_pipeline.py        ← detection → 3D localize → IK grasp (wraps lab 3)
+│   ├── search_behavior.py       ← 360° base spin search (head camera + YOLO-E)
+│   ├── grasp_pipeline.py        ← IK iterative approach + grasp (wraps lab 3)
 │   ├── navigation_utils.py      ← Nav2 helpers (wraps lab 4 pattern)
+│   ├── map_annotator.py         ← RViz click → semantic_map.yaml recorder (M1 tool)
 │   ├── semantic_map.yaml        ← zone defs, object→zone priors, drop-off coords
 │   └── map/
 │       ├── <mapname>.pgm        ← SLAM occupancy grid
@@ -212,14 +213,12 @@ The annotator prints the coordinates and prompts for a label:
 ```
 
 Label format:
-- `zone <name>` — nav centre of the zone (robot navigates here first)
-- `orbit <name> <n>` — additional viewpoint inside the zone (Phase 2 search)
+- `zone <name>` — nav point of the zone (robot navigates here, then spins 360° to search)
 - `dropoff <name>` — where the robot places the fetched object
 
-Typical annotation session per zone:
-1. Record 1 × `zone <name>` (centre/entry point)
-2. Record 2–3 × `orbit <name> <n>` around the perimeter so objects near the edges are covered
-3. Record drop-off points last
+Typical annotation session:
+1. Record 1 × `zone <name>` per area (kitchen, study, etc.)
+2. Record drop-off points
 
 The file auto-saves after every click. Ctrl-C when done.
 
@@ -235,8 +234,8 @@ object_zones:
 ```
 
 **Checklist**
-- [ ] SLAM map built and saved to `final_project/map/`
-- [ ] `map_annotator.py` run; zone nav_points + orbit waypoints recorded
+- [ ] SLAM map built and saved to `${HELLO_FLEET_PATH}/maps/`
+- [ ] `map_annotator.py` run; zone nav_points recorded
 - [ ] Drop-off coordinates recorded
 - [ ] `object_zones` filled in `semantic_map.yaml`
 
@@ -246,16 +245,15 @@ object_zones:
 
 ### M2 — CLI + Navigation to Zone
 
-> **Status: CODE DONE — pending M1 map to test on robot**
+> **Status: CODE DONE — pending robot test**
 
 **Files written:**
-- `final_project/fetch.py` — CLI entry point, full pipeline skeleton with M3/M4/M5 stubs
+- `final_project/fetch.py` — CLI entry point, full pipeline orchestrator
 - `final_project/navigation_utils.py` — Nav2 `BasicNavigator` wrapper (`go_to`, `follow_waypoints`)
 
 **What works now:**
 - `python3 fetch.py "water bottle"` loads the map, resolves object → zone(s), navigates to each zone nav_point in priority order
 - If nav to a zone fails it skips to the next zone automatically
-- Search / grasp / place are stubs that print placeholders until M3–M5 are filled in
 
 **To test once M1 map is ready:**
 ```bash
@@ -271,45 +269,58 @@ python3 fetch.py "coffee mug" --dropoff table
 
 ### M3 — Search Behavior
 
-> **Status: CODE DONE — pending M1 map + robot test**
+> **Status: CODE DONE — pending robot test**
 
 **Files written:**
 - `final_project/search_behavior.py` — `SearchBehavior` class
 
 **What it does:**
-- Attaches head-camera subscribers (`/camera/color`, `/camera/aligned_depth_to_color`, `/camera/color/camera_info`) to the FetchNode
-- Phase 1: sweeps `joint_head_pan` across 6 positions (HEAD_PAN_MIN → HEAD_PAN_MAX), runs YOLO-E at each stop, returns 3D goal pose on first detection
-- Phase 2: navigates each `orbit_waypoints` via `nav.go_to()`, repeats 3-position sweep at each stop
+- Attaches head-camera subscribers (`/camera/color`, `/camera/aligned_depth_to_color`, `/camera/color/camera_info`) to the FetchNode — not a separate node
+- Fixes head forward and slightly downward, then rotates the base in 8 steps × 45° = 360°
+- Runs YOLO-E at each stop; on first detection returns 3D goal pose
 - 3D pose: rasterises the YOLO mask polygon → projects all interior pixels with valid depth → pointcloud centroid (lab 3 Part 2 approach)
+- Coordinate fix for rotated head camera: `x_orig = y_rot`, `y_orig = h_orig - 1 - x_rot`
 - TF-transforms result from camera frame → `base_link` before returning
-- Returns `PoseStamped` in `base_link`, or `None` if nothing found
-
-**Plugged into fetch.py:**
-- `FetchNode` now extends `HelloNode` (handles ROS2 init + background spin)
-- `SearchBehavior(self, nav, obj_name)` is created inside `FetchNode.run()`
-- M4/M5 are still stubs in fetch.py
+- Returns `PoseStamped` in `base_link`, or `None` if nothing found after full spin
 
 **To test (after M1 map is ready):**
 ```bash
 cd final_project
-python3 fetch.py "water bottle"   # should navigate → sweep → print detection result
+python3 fetch.py "water bottle"   # should navigate → 360° spin → print detection result
 ```
-- [ ] Confirm head sweep runs without errors
+- [ ] Confirm 360° spin runs without errors
 - [ ] Confirm YOLO-E detects the object (check confidence / frame issues)
 - [ ] Confirm 3D centroid is reasonable (print xyz before TF transform)
-- [ ] Confirm orbit waypoints are reached if Phase 1 fails
 
 ---
 
 ### M4 — Grasp Pipeline
 
-> **Status: TODO**
+> **Status: CODE DONE — pending robot test**
 
-- [ ] Write `grasp_pipeline.py`: wrap lab 3 `object_detector_pcd` + `grasp_objects` logic
-- [ ] Input: 3D goal pose in `base_link` frame
-- [ ] Output: object grasped, arm retracted to carry pose
-- [ ] Plug into `fetch.py` `grasp_object()` stub
-- [ ] Test: robot finds and grasps object from static position
+**Files written:**
+- `final_project/grasp_pipeline.py` — `GraspPipeline` class
+
+**What it does:**
+- Subscribes to `/stretch/joint_states` and TF on the existing FetchNode — not a separate node
+- Moves to ready pose (lift=0.8, arm retracted, gripper open, head forward)
+- Iteratively approaches the goal in 5 cm steps (max 40 steps):
+  - Reads current gripper pose from TF (`link_grasp_center` → `base_link`)
+  - Computes waypoint toward goal with 5 cm safety stand-off along x
+  - IK solve via `ik_ros_utils.get_grasp_goal()` → `move_to_configuration()`
+  - When gripper is within 5 cm of target → close gripper (`gripper_aperture: -0.2`)
+- Returns `True` on success, `False` on IK failure or timeout
+- Plugged into `fetch.py` — `GraspPipeline(self)` created once before the zone loop
+
+**To test (after M1 + M3 working):**
+```bash
+cd final_project
+python3 fetch.py "water bottle"   # should navigate → search → approach → grasp
+```
+- [ ] Confirm ready pose is reached correctly
+- [ ] Confirm IK finds solutions (check print output)
+- [ ] Confirm gripper closes on the object
+- [ ] Tune `SAFETY_X`, `DELTA`, `SETTLE_SEC` if needed
 
 ---
 
@@ -352,7 +363,7 @@ python3 fetch.py "water bottle"   # should navigate → sweep → print detectio
 |---|---|---|
 | Object→zone lookup | Static YAML prior | No VLM/training needed, fast, sufficient for demo |
 | Detection model | YOLO-E (existing) | Already deployed on Stretch, zero-shot text prompts |
-| Search strategy | Head sweep → orbit | Head sweep is fast; orbit covers cases where object is not in center of zone |
+| Search strategy | 360° base spin at zone nav_point | Simple, no extra waypoints needed; covers full surroundings |
 | Grasp method | Head camera + pointcloud centroid | Consistent with lab 3 Part 2, most robust depth |
 | Transport pose | Arm retracted (stow-like) | Keeps CoM low and stable during navigation |
 | Placement | Navigate to coord → lower → open gripper | Simple, no force sensing needed for demo |

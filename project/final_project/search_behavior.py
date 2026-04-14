@@ -1,16 +1,13 @@
 """
 search_behavior.py
 ==================
-Two-phase search for a named object within a semantic zone.
+360-degree spin search for a named object within a semantic zone.
 
-Phase 1 — In-place head sweep
-    Robot stays at the zone nav_point and sweeps joint_head_pan across its full
-    range. YOLO-E is queried at each pan position. If the object is detected the
-    3-D centroid of the mask is projected into the base_link frame and returned.
-
-Phase 2 — Orbit + rescan
-    If Phase 1 finds nothing, the robot navigates to each orbit_waypoint defined
-    for the zone and repeats a shorter head sweep at every stop.
+The robot arrives at the zone nav_point, fixes the head forward and slightly
+downward, then rotates the base in SPIN_STEPS increments to cover a full 360°.
+YOLO-E is queried at each stop. On first detection, the 3-D centroid of the
+mask is projected into the base_link frame and returned.
+If nothing is found after the full spin, the function returns None.
 
 Returns:
     PoseStamped in base_link frame, or None if the object is not found.
@@ -78,7 +75,7 @@ class SearchBehavior:
     node : HelloNode
         The running HelloNode instance (provides move_to_pose, TF, spin).
     nav  : Navigator
-        The running Navigator instance (provides go_to for orbit waypoints).
+        The running Navigator instance (reserved for future use).
     obj_name : str
         Plain-text name passed to YOLO-E's set_classes(), e.g. "water bottle".
     """
