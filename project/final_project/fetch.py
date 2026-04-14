@@ -30,6 +30,7 @@ import yaml
 import hello_helpers.hello_misc as hm
 from navigation_utils import Navigator, NavResult
 from search_behavior import SearchBehavior
+from grasp_pipeline import GraspPipeline
 
 SEMANTIC_MAP_PATH = 'semantic_map.yaml'
 
@@ -79,22 +80,13 @@ def get_dropoff(dropoff_name: str, smap: dict) -> dict:
     return dropoffs[dropoff_name]
 
 
-# ---------------------------------------------------------------------------
-# M4 stub — replaced when grasp_pipeline.py is written
-# ---------------------------------------------------------------------------
-
-def grasp_object(node, goal_pose):
+def grasp_object(node, grasper: 'GraspPipeline', goal_pose):
     """
-    [M4 stub] Approach and grasp the detected object.
+    M4 — approach and grasp the detected object.
     goal_pose: PoseStamped in base_link frame returned by SearchBehavior.
     Returns True on success.
     """
-    # TODO: replace with:
-    #   from grasp_pipeline import GraspPipeline
-    #   grasper = GraspPipeline(node)
-    #   return grasper.grasp(goal_pose)
-    print('[GRASP] M4 stub — not implemented yet.')
-    return False
+    return grasper.grasp(goal_pose)
 
 
 # ---------------------------------------------------------------------------
@@ -148,8 +140,9 @@ class FetchNode(hm.HelloNode):
         nav = Navigator()
         nav.wait_until_ready()
 
-        # ---- build searcher once (loads YOLO-E, sets up camera subs) ----
+        # ---- build searcher and grasper once ----
         searcher = SearchBehavior(self, nav, obj_name)
+        grasper  = GraspPipeline(self)
         print(f'[SEARCH] YOLO-E loaded. Searching for "{obj_name}".\n')
 
         # ---- search each zone in priority order ----
@@ -188,7 +181,7 @@ class FetchNode(hm.HelloNode):
         print(f'\n[FOUND] "{obj_name}" located in zone "{found_in_zone}". Grasping ...\n')
 
         # ---- M4: grasp ----
-        success = grasp_object(self, goal_pose)
+        success = grasp_object(self, grasper, goal_pose)
         if not success:
             print('[FAIL] Grasp failed.')
             nav.shutdown()

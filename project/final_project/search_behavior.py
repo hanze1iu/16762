@@ -1,16 +1,13 @@
 """
 search_behavior.py
 ==================
-Two-phase search for a named object within a semantic zone.
+360-degree spin search for a named object within a semantic zone.
 
-Phase 1 — In-place head sweep
-    Robot stays at the zone nav_point and sweeps joint_head_pan across its full
-    range. YOLO-E is queried at each pan position. If the object is detected the
-    3-D centroid of the mask is projected into the base_link frame and returned.
-
-Phase 2 — Orbit + rescan
-    If Phase 1 finds nothing, the robot navigates to each orbit_waypoint defined
-    for the zone and repeats a shorter head sweep at every stop.
+The robot arrives at the zone nav_point, fixes the head forward and slightly
+downward, then rotates the base in SPIN_STEPS increments to cover a full 360°.
+YOLO-E is queried at each stop. On first detection, the 3-D centroid of the
+mask is projected into the base_link frame and returned.
+If nothing is found after the full spin, the function returns None.
 
 Returns:
     PoseStamped in base_link frame, or None if the object is not found.
@@ -78,20 +75,19 @@ class SearchBehavior:
     node : HelloNode
         The running HelloNode instance (provides move_to_pose, TF, spin).
     nav  : Navigator
-        The running Navigator instance (provides go_to for orbit waypoints).
+        The running Navigator instance (reserved for future use).
     obj_name : str
         Plain-text name passed to YOLO-E's set_classes(), e.g. "water bottle".
     """
 
-    # How many pan positions to sample during a sweep
-    PHASE1_STEPS = 6   # full sweep across HEAD_PAN_MIN → HEAD_PAN_MAX
-    PHASE2_STEPS = 3   # shorter sweep at each orbit stop
+    # How many steps to divide the 360-degree base spin into
+    SPIN_STEPS = 8   # 8 × 45° = 360°
 
-    # Seconds to wait for a fresh camera frame after moving the head
+    # Seconds to wait for a fresh camera frame after rotating
     FRAME_WAIT_SEC = 1.5
 
-    # Seconds to pause after commanding head pan (camera stabilisation)
-    SETTLE_SEC = 0.35
+    # Seconds to pause after rotating base (camera stabilisation)
+    SETTLE_SEC = 0.5
 
     def __init__(self, node, nav: Navigator, obj_name: str):
         self.node     = node
@@ -225,33 +221,41 @@ class SearchBehavior:
         return np.mean(points_3d, axis=0)
 
     # ------------------------------------------------------------------
-    # Head sweep
+    # 360-degree base spin search
     # ------------------------------------------------------------------
 
-    def _head_sweep(self, n_steps: int) -> 'PoseStamped | None':
+    def _spin_search(self) -> 'PoseStamped | None':
         """
-        Sweep joint_head_pan from HEAD_PAN_MIN to HEAD_PAN_MAX in n_steps.
-        Runs YOLO-E at each stop.
+        Rotate the robot base 360 degrees in SPIN_STEPS increments.
+        Runs YOLO-E detection at each stop.
+        Head is fixed forward and slightly down throughout.
         Returns PoseStamped on first detection, or None.
         """
-        pan_angles = np.linspace(HEAD_PAN_MIN, HEAD_PAN_MAX, n_steps)
+        # Fix head forward and slightly down
+        self.node.move_to_pose(
+            {'joint_head_pan': -1.6, 'joint_head_tilt': HEAD_TILT},
+            blocking=True,
+        )
 
-        for pan in pan_angles:
+        delta = 2 * np.pi / self.SPIN_STEPS  # radians per step
+
+        for step in range(self.SPIN_STEPS):
+            print(f'[SEARCH] Spin step {step+1}/{self.SPIN_STEPS} '
+                  f'({np.degrees(step * delta):.0f}°) ...')
+
             self.node.move_to_pose(
-                {'joint_head_pan': float(pan), 'joint_head_tilt': HEAD_TILT},
+                {'rotate_mobile_base': delta},
                 blocking=True,
             )
             time.sleep(self.SETTLE_SEC)
 
             if not self._wait_for_fresh_frame():
-                self.node.get_logger().warn(
-                    f'[SEARCH] No camera frame at pan={np.degrees(pan):.1f}°, skipping.'
-                )
+                self.node.get_logger().warn('[SEARCH] No camera frame, skipping step.')
                 continue
 
             pose = self._detect_current_frame()
             if pose is not None:
-                print(f'[SEARCH] "{self.obj_name}" detected at head_pan={np.degrees(pan):.1f}°')
+                print(f'[SEARCH] "{self.obj_name}" detected at step {step+1}.')
                 return pose
 
         return None
@@ -262,55 +266,26 @@ class SearchBehavior:
 
     def search(self, zone: dict) -> 'PoseStamped | None':
         """
-        Run the two-phase search.
+        Spin 360 degrees at the zone nav_point looking for the object.
         Assumes the robot is already at zone['nav_point'].
 
         Parameters
         ----------
         zone : dict
-            A zone config dict from semantic_map.yaml with keys:
-              nav_point, orbit_waypoints (list of {x, y, yaw}).
+            A zone config dict from semantic_map.yaml.
 
         Returns
         -------
         PoseStamped in base_link frame, or None if not found.
         """
-        orbit_waypoints = zone.get('orbit_waypoints', [])
-
-        # ---- Phase 1: full head sweep at zone nav_point ----
-        print(f'[SEARCH] Phase 1: sweeping head ({self.PHASE1_STEPS} steps) ...')
-        pose = self._head_sweep(self.PHASE1_STEPS)
-        if pose is not None:
-            self._reset_head()
-            return pose
-
-        print(f'[SEARCH] Phase 1 done — "{self.obj_name}" not found.')
-
-        if not orbit_waypoints:
-            print('[SEARCH] No orbit waypoints defined for this zone.')
-            return None
-
-        # ---- Phase 2: orbit waypoints + rescan ----
-        print(f'[SEARCH] Phase 2: checking {len(orbit_waypoints)} orbit waypoint(s) ...')
-        for i, wp in enumerate(orbit_waypoints):
-            print(f'[SEARCH] Orbit waypoint {i+1}/{len(orbit_waypoints)} '
-                  f'(x={wp["x"]:.2f}, y={wp["y"]:.2f}) ...')
-
-            result = self.nav.go_to(wp['x'], wp['y'], wp.get('yaw', 0.0))
-            if result != NavResult.SUCCEEDED:
-                print(f'[SEARCH] Could not reach orbit waypoint {i+1} ({result}), skipping.')
-                continue
-
-            pose = self._head_sweep(self.PHASE2_STEPS)
-            if pose is not None:
-                self._reset_head()
-                return pose
-
-            print(f'[SEARCH] Nothing at orbit waypoint {i+1}.')
-
-        print(f'[SEARCH] Phase 2 done — "{self.obj_name}" not found in any orbit position.')
+        print(f'[SEARCH] Spinning 360° ({self.SPIN_STEPS} steps) to find "{self.obj_name}" ...')
+        pose = self._spin_search()
         self._reset_head()
-        return None
+
+        if pose is None:
+            print(f'[SEARCH] "{self.obj_name}" not found after full 360° spin.')
+
+        return pose
 
     def _reset_head(self):
         """Return head to forward-looking pose after search."""
