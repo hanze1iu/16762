@@ -274,7 +274,7 @@ class SearchBehavior:
 
     def search(self, zone: dict) -> 'PoseStamped | None':
         """
-        Spin 360 degrees at the zone nav_point looking for the object.
+        Sweep head pan across full range looking for the object.
         Assumes the robot is already at zone['nav_point'].
 
         Parameters
@@ -286,12 +286,12 @@ class SearchBehavior:
         -------
         PoseStamped in base_link frame, or None if not found.
         """
-        print(f'[SEARCH] Spinning 360° ({self.SPIN_STEPS} steps) to find "{self.obj_name}" ...')
-        pose = self._spin_search()
+        print(f'[SEARCH] Sweeping head ({self.PHASE1_STEPS} steps) to find "{self.obj_name}" ...')
+        pose = self._head_sweep(self.PHASE1_STEPS)
         self._reset_head()
 
         if pose is None:
-            print(f'[SEARCH] "{self.obj_name}" not found after full 360° spin.')
+            print(f'[SEARCH] "{self.obj_name}" not found after full head sweep.')
 
         return pose
 
