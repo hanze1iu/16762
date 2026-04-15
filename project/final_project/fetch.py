@@ -137,7 +137,7 @@ class FetchNode(hm.HelloNode):
         self.stow_the_robot()
 
         # ---- start Nav2 ----
-        nav = Navigator()
+        nav = Navigator(node=self)
         nav.wait_until_ready()
 
         # ---- build searcher and grasper once ----

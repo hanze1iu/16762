@@ -449,7 +449,7 @@ class FetchDemo(hm.HelloNode):
         self._setup()
         self.stow_the_robot()
 
-        nav = Navigator()
+        nav = Navigator(node=self)
         nav.wait_until_ready()
 
         # ----------------------------------------------------------------
