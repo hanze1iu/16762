@@ -1,0 +1,9 @@
+# object_queries.yaml
+# Maps object name (must match semantic_map.yaml) to a list of YOLO-E prompts.
+# First entry = canonical label used to filter detections.
+# More synonyms = better YOLO-E context = more robust detection.
+
+water bottle:
+  - water bottle
+  - bottle
+  - plastic bottle
