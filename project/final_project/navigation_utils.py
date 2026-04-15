@@ -10,6 +10,7 @@ Provides:
 """
 
 import math
+import time
 from geometry_msgs.msg import PoseStamped
 from stretch_nav2.robot_navigator import BasicNavigator, TaskResult
 from rclpy.duration import Duration
@@ -97,12 +98,20 @@ class Navigator:
         self._nav.goToPose(pose)
         start = self._nav.get_clock().now()
 
-        while not self._nav.isTaskComplete():
+        while True:
+            try:
+                done = self._nav.isTaskComplete()
+            except IndexError:
+                time.sleep(0.05)
+                continue
+            if done:
+                break
             elapsed = self._nav.get_clock().now() - start
             if elapsed > Duration(seconds=timeout_sec):
                 self._nav.cancelTask()
                 print(f'[NAV] Timed out after {timeout_sec}s, cancelling.')
                 return NavResult.CANCELED
+            time.sleep(0.05)
 
         return self._task_result_to_str(self._nav.getResult())
 
@@ -131,7 +140,14 @@ class Navigator:
         start = self._nav.get_clock().now()
 
         i = 0
-        while not self._nav.isTaskComplete():
+        while True:
+            try:
+                done = self._nav.isTaskComplete()
+            except IndexError:
+                time.sleep(0.05)
+                continue
+            if done:
+                break
             elapsed = self._nav.get_clock().now() - start
             if elapsed > Duration(seconds=timeout_sec):
                 self._nav.cancelTask()
@@ -144,6 +160,7 @@ class Navigator:
                 if wp_idx != i:
                     i = wp_idx
                     print(f'[NAV] Reaching waypoint {i}/{len(poses)} ...')
+            time.sleep(0.05)
 
         return self._task_result_to_str(self._nav.getResult())
 
