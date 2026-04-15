@@ -1,29 +1,36 @@
-dropoffs: {}
+dropoffs:
+  default:
+    x: 0.0
+    y: 0.0
+    yaw: 0.0
+    description: Starting position / default drop-off
 zones:
-  <desk1>:
+  desk1:
     description: ''
     nav_point:
-      x: 2.32
-      y: -0.647
+      x: 3.444
+      y: 0.473
       yaw: 0.0
-    orbit_waypoints:
-    - x: 2.433
-      y: -1.235
-      yaw: 0.0
-    - x: 2.145
-      y: -0.71
-      yaw: 0.0
-    - x: 2.383
-      y: -0.791
-      yaw: 0.0
-  <desk2>:
+    orbit_waypoints: []
+
+  desk2:
     description: ''
     nav_point:
-      x: 0.0
-      y: 0.0
+      x: 7.333
+      y: -0.437
       yaw: 0.0
-    orbit_waypoints:
-    - x: 2.389
-      y: -0.779
+    orbit_waypoints: []
+  desk3:
+    description: ''
+    nav_point:
+      x: 3.104
+      y: 2.153
       yaw: 0.0
-object_zones: {}
+    orbit_waypoints: []
+object_zones:
+  water bottle:
+  - desk1
+  coffee cup:
+  - desk2
+  laptop:
+  - desk3
