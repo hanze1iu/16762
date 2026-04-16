@@ -51,7 +51,7 @@ GRIPPER_FRAME  = 'link_grasp_center'
 BASE_FRAME     = 'base_link'
 
 DELTA          = 0.06   # close gripper when within this distance (metres)
-SAFETY_X       = 0.01   # stand-off: approach from slightly in front of centroid
+SAFETY_X       = -0.03   # stand-off: approach from slightly in front of centroid
 MAX_STEPS      = 40     # iterations before giving up
 SETTLE_SEC     = 0.4    # wait after each move for TF to update
 JOINT_TIMEOUT  = 5.0    # seconds to wait for first joint-state message
