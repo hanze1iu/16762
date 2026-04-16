@@ -56,11 +56,10 @@ MAX_STEPS      = 40     # iterations before giving up
 SETTLE_SEC     = 0.4    # wait after each move for TF to update
 JOINT_TIMEOUT  = 5.0    # seconds to wait for first joint-state message
 
-# Grasp target calibration offsets (base_link frame)
-# +y = robot's left, -y = robot's right
-# +z = up, -z = down
-GRASP_Y_OFFSET = -0.14   # 10cm camera bias + 4cm extra
-GRASP_Z_OFFSET = -0.08   # gripper was 8cm too high
+# No static calibration offsets — live detection self-corrects (lab3 style).
+# safety_x standoff is applied inside _compute_waypoint (same as lab3).
+GRASP_Y_OFFSET = 0.0
+GRASP_Z_OFFSET = 0.0
 
 
 # ---------------------------------------------------------------------------
