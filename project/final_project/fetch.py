@@ -40,6 +40,12 @@ SEMANTIC_MAP_PATH   = 'semantic_map.yaml'
 GOAL_TOPIC          = '/object_detector/goal_pose'
 DETECTION_TIMEOUT   = 30.0   # seconds to wait for first detection after arriving
 
+# Head pose for detection — camera points forward and slightly down toward desk level
+READY_HEAD = {
+    'joint_head_pan':  -1.6,
+    'joint_head_tilt': -0.5,
+}
+
 
 # ---------------------------------------------------------------------------
 # Config helpers
@@ -210,12 +216,14 @@ class FetchNode(hm.HelloNode):
                 print(f'[NAV] Could not reach "{zone_name}" ({result}), skipping.\n')
                 continue
 
-            print(f'[NAV] Arrived at "{zone_name}". Waiting for detection ...\n')
+            print(f'[NAV] Arrived at "{zone_name}". Setting ready head pose ...')
+            self.move_to_pose(READY_HEAD, blocking=True)
 
             # Clear stale detection before waiting for a fresh one
             with self._goal_lock:
                 self._latest_goal = None
 
+            print('[DETECT] Waiting for detection ...\n')
             goal_pose = self._wait_for_detection()
             if goal_pose is not None:
                 found_in_zone = zone_name
