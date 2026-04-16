@@ -50,7 +50,7 @@ READY_HEAD = {
 GRIPPER_FRAME  = 'link_grasp_center'
 BASE_FRAME     = 'base_link'
 
-DELTA          = 0.08   # close gripper when within this distance (metres)
+DELTA          = 0.07   # close gripper when within this distance (metres)
 SAFETY_X       = 0.05   # stand-off: approach from slightly in front of centroid
 MAX_STEPS      = 40     # iterations before giving up
 SETTLE_SEC     = 0.4    # wait after each move for TF to update
