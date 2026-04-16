@@ -209,6 +209,11 @@ class GraspPipeline:
         # ---- 3. Iterative approach ----
         print(f'[GRASP] Starting iterative approach (max {MAX_STEPS} steps) ...')
 
+        prev_dist   = float('inf')
+        stuck_count = 0
+        STUCK_THRESHOLD = 0.005   # less than 5mm progress = stuck
+        STUCK_STEPS     = 3       # force close after this many stuck steps
+
         for step in range(MAX_STEPS):
             # Refresh goal from live detector (full x/y/z).
             # The detector only updates its published pose when confidence >= 0.7,
@@ -227,6 +232,21 @@ class GraspPipeline:
             print(f'[GRASP] Step {step+1:02d}: dist={dist:.3f} m  '
                   f'target=({goal_pos[0]:.3f},{goal_pos[1]:.3f},{goal_pos[2]:.3f})  '
                   f'gripper=({gripper_pos[0]:.3f},{gripper_pos[1]:.3f},{gripper_pos[2]:.3f})')
+
+            # Stuck detection — force close if no progress for STUCK_STEPS consecutive steps
+            if prev_dist - dist < STUCK_THRESHOLD:
+                stuck_count += 1
+            else:
+                stuck_count = 0
+            prev_dist = dist
+
+            if stuck_count >= STUCK_STEPS:
+                print(f'[GRASP] Arm stuck for {STUCK_STEPS} steps — forcing gripper close.')
+                self.node.move_to_pose({'gripper_aperture': -0.2}, blocking=True)
+                print('[GRASP] Gripper closed. Retracting arm ...')
+                self.node.move_to_pose({'joint_arm': 0.0}, blocking=True)
+                print('[GRASP] Arm retracted.')
+                return True
 
             if dist <= DELTA:
                 print('[GRASP] Within reach — closing gripper.')
