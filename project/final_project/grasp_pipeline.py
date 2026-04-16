@@ -50,7 +50,7 @@ READY_HEAD = {
 GRIPPER_FRAME  = 'link_grasp_center'
 BASE_FRAME     = 'base_link'
 
-DELTA          = 0.05   # step size toward goal (metres)
+DELTA          = 0.12   # close gripper when within this distance (metres)
 SAFETY_X       = 0.05   # stand-off: approach from slightly in front of centroid
 MAX_STEPS      = 40     # iterations before giving up
 SETTLE_SEC     = 0.4    # wait after each move for TF to update
@@ -210,7 +210,9 @@ class GraspPipeline:
         print(f'[GRASP] Starting iterative approach (max {MAX_STEPS} steps) ...')
 
         for step in range(MAX_STEPS):
-            # Refresh goal from live detector if available
+            # Refresh goal from live detector (full x/y/z).
+            # The detector only updates its published pose when confidence >= 0.7,
+            # so stale/low-confidence frames are already filtered on the detector side.
             if get_goal_fn is not None:
                 fresh = get_goal_fn()
                 if fresh is not None:
