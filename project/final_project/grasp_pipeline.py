@@ -231,7 +231,10 @@ class GraspPipeline:
             if dist <= DELTA:
                 print('[GRASP] Within reach — closing gripper.')
                 self.node.move_to_pose({'gripper_aperture': -0.2}, blocking=True)
-                print('[GRASP] Gripper closed.')
+                print('[GRASP] Gripper closed. Retracting arm ...')
+                # Retract arm only (no lift change) to avoid dragging object across table.
+                self.node.move_to_pose({'joint_arm': 0.0}, blocking=True)
+                print('[GRASP] Arm retracted.')
                 return True
 
             # IK solve
