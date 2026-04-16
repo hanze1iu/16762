@@ -43,7 +43,7 @@ READY_POSE = {
     'gripper_aperture':  0.8,
 }
 READY_HEAD = {
-    'joint_head_pan':  -1.6,
+    'joint_head_pan':  -1.7,
     'joint_head_tilt': -0.5,
 }
 
