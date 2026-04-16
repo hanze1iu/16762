@@ -4,6 +4,21 @@ dropoffs:
     y: 0.0
     yaw: 0.0
     description: Starting position / default drop-off
+  desk1:
+    x: 3.444
+    y: 0.473
+    yaw: 0.0
+    description: Desk 1 drop-off
+  desk2:
+    x: 7.333
+    y: -0.437
+    yaw: 0.0
+    description: Desk 2 drop-off
+  desk3:
+    x: 3.104
+    y: 2.153
+    yaw: 0.0
+    description: Desk 3 drop-off
 zones:
   desk1:
     description: ''
