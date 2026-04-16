@@ -80,13 +80,16 @@ def get_dropoff(dropoff_name: str, smap: dict) -> dict:
     return dropoffs[dropoff_name]
 
 
-def grasp_object(node, grasper: 'GraspPipeline', goal_pose):
+def grasp_object(node, grasper: 'GraspPipeline', goal_pose, searcher=None):
     """
     M4 — approach and grasp the detected object.
     goal_pose: PoseStamped in base_link frame returned by SearchBehavior.
+    searcher:  SearchBehavior instance — if provided, enables lab3-style
+               continuous background re-detection during the grasp approach.
     Returns True on success.
     """
-    return grasper.grasp(goal_pose)
+    detect_fn = searcher._detect if searcher is not None else None
+    return grasper.grasp(goal_pose, detect_fn=detect_fn)
 
 
 # ---------------------------------------------------------------------------
@@ -181,7 +184,7 @@ class FetchNode(hm.HelloNode):
         print(f'\n[FOUND] "{obj_name}" located in zone "{found_in_zone}". Grasping ...\n')
 
         # ---- M4: grasp ----
-        success = grasp_object(self, grasper, goal_pose)
+        success = grasp_object(self, grasper, goal_pose, searcher=searcher)
         if not success:
             print('[FAIL] Grasp failed.')
             nav.shutdown()
