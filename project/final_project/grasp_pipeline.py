@@ -169,46 +169,27 @@ class GraspPipeline:
     # Public API
     # ------------------------------------------------------------------
 
-    def grasp(self, goal_pose: PoseStamped, detect_fn=None) -> bool:
+    def grasp(self, goal_pose: PoseStamped) -> bool:
         """
-        Move to the ready pose, then iteratively approach the object.
-
-        Mirrors lab3 IKTargetFollowing: if detect_fn is provided, a background
-        thread calls it continuously (~every 2 s) and updates goal_pos in place,
-        so the IK loop always tracks the freshest detection — no hardcoded offsets
-        needed.
+        Move to the ready pose, then iteratively approach goal_pose and
+        close the gripper.
 
         Parameters
         ----------
         goal_pose : PoseStamped
-            Initial 3D estimate in base_link (from SearchBehavior).
-        detect_fn : callable | None
-            Optional. Called in a daemon thread; must return PoseStamped in
-            base_link or None.  When provided, GRASP_Y/Z_OFFSET are NOT applied
-            (the live detections self-correct).
+            3D centroid of the target object in base_link frame (from SearchBehavior).
 
         Returns
         -------
-        bool — True if gripper closed on the object, False on failure.
+        bool — True if gripper was closed on the object, False on failure.
         """
-        # ---- initial goal position ----
-        if detect_fn is not None:
-            # live detection mode — no static offsets
-            goal_pos = np.array([
-                goal_pose.pose.position.x,
-                goal_pose.pose.position.y,
-                goal_pose.pose.position.z,
-            ])
-        else:
-            # static offset fallback
-            goal_pos = np.array([
-                goal_pose.pose.position.x,
-                goal_pose.pose.position.y + GRASP_Y_OFFSET,
-                goal_pose.pose.position.z + GRASP_Z_OFFSET,
-            ])
-
-        print(f'[GRASP] Initial target (base_link): '
-              f'x={goal_pos[0]:.3f}  y={goal_pos[1]:.3f}  z={goal_pos[2]:.3f}')
+        goal_pos = np.array([
+            goal_pose.pose.position.x,
+            goal_pose.pose.position.y + GRASP_Y_OFFSET,
+            goal_pose.pose.position.z + GRASP_Z_OFFSET,
+        ])
+        print(f'[GRASP] Target in base_link: x={goal_pos[0]:.3f}  '
+              f'y={goal_pos[1]:.3f}  z={goal_pos[2]:.3f}')
 
         # ---- 1. Move to ready pose ----
         print('[GRASP] Moving to ready pose ...')
@@ -220,71 +201,36 @@ class GraspPipeline:
             print('[GRASP] ERROR: timed out waiting for joint states.')
             return False
 
-        # ---- 3. Background detection thread (lab3 style) ----
-        goal_lock  = threading.Lock()
-        stop_event = threading.Event()
-
-        if detect_fn is not None:
-            def _detect_loop():
-                while not stop_event.is_set():
-                    try:
-                        new_pose = detect_fn()
-                        if new_pose is not None:
-                            with goal_lock:
-                                goal_pos[0] = new_pose.pose.position.x
-                                goal_pos[1] = new_pose.pose.position.y
-                                goal_pos[2] = new_pose.pose.position.z
-                            print(f'[GRASP] Goal updated: '
-                                  f'x={goal_pos[0]:.3f}  '
-                                  f'y={goal_pos[1]:.3f}  '
-                                  f'z={goal_pos[2]:.3f}')
-                    except Exception as e:
-                        print(f'[GRASP] detect_fn error: {e}')
-                    # YOLO takes ~2 s; sleep a little so we don't busy-spin
-                    time.sleep(0.05)
-
-            det_thread = threading.Thread(target=_detect_loop, daemon=True)
-            det_thread.start()
-            print('[GRASP] Background detection thread started.')
-
-        # ---- 4. Iterative IK approach ----
+        # ---- 3. Iterative approach ----
         print(f'[GRASP] Starting iterative approach (max {MAX_STEPS} steps) ...')
 
-        try:
-            for step in range(MAX_STEPS):
-                gripper_pos = self._get_gripper_pos()
-                if gripper_pos is None:
-                    print('[GRASP] ERROR: cannot get gripper TF.')
-                    return False
+        for step in range(MAX_STEPS):
+            gripper_pos = self._get_gripper_pos()
+            if gripper_pos is None:
+                print('[GRASP] ERROR: cannot get gripper TF.')
+                return False
 
-                with goal_lock:
-                    current_goal = goal_pos.copy()
+            waypoint, orient, dist = self._compute_waypoint(goal_pos, gripper_pos)
+            print(f'[GRASP] Step {step+1:02d}: dist={dist:.3f} m  '
+                  f'gripper=({gripper_pos[0]:.3f},{gripper_pos[1]:.3f},{gripper_pos[2]:.3f})')
 
-                waypoint, orient, dist = self._compute_waypoint(current_goal, gripper_pos)
-                print(f'[GRASP] Step {step+1:02d}: dist={dist:.3f} m  '
-                      f'gripper=({gripper_pos[0]:.3f},{gripper_pos[1]:.3f},{gripper_pos[2]:.3f})  '
-                      f'goal=({current_goal[0]:.3f},{current_goal[1]:.3f},{current_goal[2]:.3f})')
+            if dist <= DELTA:
+                print('[GRASP] Within reach — closing gripper.')
+                self.node.move_to_pose({'gripper_aperture': -0.2}, blocking=True)
+                print('[GRASP] Gripper closed.')
+                return True
 
-                if dist <= DELTA:
-                    print('[GRASP] Within reach — closing gripper.')
-                    self.node.move_to_pose({'gripper_aperture': -0.2}, blocking=True)
-                    print('[GRASP] Gripper closed.')
-                    return True
+            # IK solve
+            js     = self._get_joint_state_copy()
+            q_init = ik.get_current_configuration(js)
+            q_soln = ik.get_grasp_goal(waypoint, orient, q_init)
 
-                # IK solve
-                js     = self._get_joint_state_copy()
-                q_init = ik.get_current_configuration(js)
-                q_soln = ik.get_grasp_goal(waypoint, orient, q_init)
+            if q_soln is None:
+                print(f'[GRASP] IK has no solution at step {step+1}. Aborting.')
+                return False
 
-                if q_soln is None:
-                    print(f'[GRASP] IK has no solution at step {step+1}. Aborting.')
-                    return False
+            ik.move_to_configuration(self.node, q_soln)
+            time.sleep(SETTLE_SEC)
 
-                ik.move_to_configuration(self.node, q_soln)
-                time.sleep(SETTLE_SEC)
-
-            print(f'[GRASP] Reached max steps ({MAX_STEPS}) without grasping.')
-            return False
-
-        finally:
-            stop_event.set()   # stop background detection thread
+        print(f'[GRASP] Reached max steps ({MAX_STEPS}) without grasping.')
+        return False
