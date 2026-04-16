@@ -169,7 +169,7 @@ class GraspPipeline:
     # Public API
     # ------------------------------------------------------------------
 
-    def grasp(self, goal_pose: PoseStamped) -> bool:
+    def grasp(self, goal_pose: PoseStamped, get_goal_fn=None) -> bool:
         """
         Move to the ready pose, then iteratively approach goal_pose and
         close the gripper.
@@ -177,18 +177,24 @@ class GraspPipeline:
         Parameters
         ----------
         goal_pose : PoseStamped
-            3D centroid of the target object in base_link frame (from SearchBehavior).
+            Initial 3D centroid of the target object in base_link frame.
+        get_goal_fn : callable, optional
+            If provided, called at each IK step to get the latest PoseStamped
+            in base_link. Enables live correction (lab3-style closed-loop).
 
         Returns
         -------
         bool — True if gripper was closed on the object, False on failure.
         """
-        goal_pos = np.array([
-            goal_pose.pose.position.x,
-            goal_pose.pose.position.y + GRASP_Y_OFFSET,
-            goal_pose.pose.position.z + GRASP_Z_OFFSET,
-        ])
-        print(f'[GRASP] Target in base_link: x={goal_pos[0]:.3f}  '
+        def _pose_to_goal_pos(pose: PoseStamped) -> np.ndarray:
+            return np.array([
+                pose.pose.position.x,
+                pose.pose.position.y + GRASP_Y_OFFSET,
+                pose.pose.position.z + GRASP_Z_OFFSET,
+            ])
+
+        goal_pos = _pose_to_goal_pos(goal_pose)
+        print(f'[GRASP] Initial target in base_link: x={goal_pos[0]:.3f}  '
               f'y={goal_pos[1]:.3f}  z={goal_pos[2]:.3f}')
 
         # ---- 1. Move to ready pose ----
@@ -205,6 +211,12 @@ class GraspPipeline:
         print(f'[GRASP] Starting iterative approach (max {MAX_STEPS} steps) ...')
 
         for step in range(MAX_STEPS):
+            # Refresh goal from live detector if available
+            if get_goal_fn is not None:
+                fresh = get_goal_fn()
+                if fresh is not None:
+                    goal_pos = _pose_to_goal_pos(fresh)
+
             gripper_pos = self._get_gripper_pos()
             if gripper_pos is None:
                 print('[GRASP] ERROR: cannot get gripper TF.')
@@ -212,6 +224,7 @@ class GraspPipeline:
 
             waypoint, orient, dist = self._compute_waypoint(goal_pos, gripper_pos)
             print(f'[GRASP] Step {step+1:02d}: dist={dist:.3f} m  '
+                  f'target=({goal_pos[0]:.3f},{goal_pos[1]:.3f},{goal_pos[2]:.3f})  '
                   f'gripper=({gripper_pos[0]:.3f},{gripper_pos[1]:.3f},{gripper_pos[2]:.3f})')
 
             if dist <= DELTA:

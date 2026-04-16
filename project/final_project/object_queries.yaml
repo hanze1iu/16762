@@ -1,9 +1,13 @@
 # object_queries.yaml
-# Maps object name (must match semantic_map.yaml) to a list of YOLO-E prompts.
-# First entry = canonical label used to filter detections.
-# More synonyms = better YOLO-E context = more robust detection.
+# queries: text prompts passed to YOLO-E set_classes()
+# target:  label used to filter detections (must match one entry in queries)
+#
+# Update target (and restart the detector) when switching fetch objects.
+# Valid targets: water bottle | coffee cup | laptop
 
-water bottle:
+queries:
   - water bottle
-  - bottle
-  - plastic bottle
+  - coffee cup
+  - laptop
+
+target: water bottle

@@ -3,36 +3,42 @@ fetch.py
 ========
 CLI entry point for the Semantic Fetch pipeline.
 
-Usage:
-    python3 fetch.py <object_name> [--dropoff <name>] [--map <path>]
+Detection is handled by a separately-running object_detector_pcd node
+(lab3 code) that publishes to /object_detector/goal_pose.
+fetch.py handles navigation + grasping only.
 
-Examples:
+Usage:
+    # T4 — start detector first
+    python3 ../lab3/object_detector_pcd-1.py
+
+    # T5 — then run fetch
     python3 fetch.py "water bottle"
     python3 fetch.py "coffee mug" --dropoff table
 
-Pipeline:
-    M1  semantic_map.yaml  ← object → zone lookup
-    M2  navigation_utils   ← navigate to zone nav_point         [DONE]
-    M3  search_behavior    ← head sweep + orbit search          [DONE]
-    M4  grasp_pipeline     ← detect → 3D pose → IK grasp       [stub]
-    M5  (inline)           ← transport + placement              [stub]
-
 Prerequisites:
-    ros2 launch stretch_core stretch_driver.launch.py
+    ros2 launch stretch_core stretch_driver.launch.py mode:=navigation
     ros2 launch stretch_core d435i_low_resolution.launch.py
     ros2 launch stretch_nav2 navigation.launch.py map:=final_project/map/<map>.yaml
 """
 
 import sys
+import time
+import threading
 import argparse
 import yaml
 
+import rclpy
+import tf2_ros
+from tf2_geometry_msgs import do_transform_pose_stamped
+from geometry_msgs.msg import PoseStamped
+
 import hello_helpers.hello_misc as hm
 from navigation_utils import Navigator, NavResult
-from search_behavior import SearchBehavior
 from grasp_pipeline import GraspPipeline
 
-SEMANTIC_MAP_PATH = 'semantic_map.yaml'
+SEMANTIC_MAP_PATH   = 'semantic_map.yaml'
+GOAL_TOPIC          = '/object_detector/goal_pose'
+DETECTION_TIMEOUT   = 30.0   # seconds to wait for first detection after arriving
 
 
 # ---------------------------------------------------------------------------
@@ -62,10 +68,7 @@ def lookup_zones(obj_name: str, smap: dict) -> list:
 def get_zone(zone_name: str, smap: dict) -> dict:
     zones = smap.get('zones', {})
     if zone_name not in zones:
-        sys.exit(
-            f'[ERROR] Zone "{zone_name}" not defined under zones '
-            f'in {SEMANTIC_MAP_PATH}.'
-        )
+        sys.exit(f'[ERROR] Zone "{zone_name}" not defined in {SEMANTIC_MAP_PATH}.')
     return zones[zone_name]
 
 
@@ -80,45 +83,96 @@ def get_dropoff(dropoff_name: str, smap: dict) -> dict:
     return dropoffs[dropoff_name]
 
 
-def grasp_object(node, grasper: 'GraspPipeline', goal_pose):
-    """
-    M4 — approach and grasp the detected object.
-    goal_pose: PoseStamped in base_link frame returned by SearchBehavior.
-    Returns True on success.
-    """
-    return grasper.grasp(goal_pose)
-
-
-# ---------------------------------------------------------------------------
-# M5 stub — replaced when placement logic is written
-# ---------------------------------------------------------------------------
-
 def place_object(node, dropoff: dict):
-    """
-    [M5 stub] Lower arm to table height, open gripper, stow arm.
-    """
-    # TODO: implement:
-    #   node.move_to_pose({'joint_lift': <table_height>}, blocking=True)
-    #   node.move_to_pose({'gripper_aperture': 0.6}, blocking=True)
-    #   node.stow_the_robot()
     print('[PLACE] M5 stub — not implemented yet.')
 
 
 # ---------------------------------------------------------------------------
-# Main pipeline (runs inside HelloNode context)
+# FetchNode
 # ---------------------------------------------------------------------------
 
 class FetchNode(hm.HelloNode):
-    """
-    HelloNode subclass that orchestrates the full fetch pipeline.
-    Inheriting from HelloNode gives us:
-      - move_to_pose() for head/arm/base control
-      - stow_the_robot()
-      - Properly initialised ROS2 node + background spin thread
-    """
 
     def __init__(self):
         hm.HelloNode.__init__(self)
+
+        # Latest goal pose from external detector (camera frame)
+        self._goal_lock   = threading.Lock()
+        self._latest_goal = None   # PoseStamped in camera frame
+
+        # TF buffer for camera → base_link transform
+        self._tf_buffer   = None
+        self._tf_listener = None
+
+    # ------------------------------------------------------------------
+    # Setup (called after HelloNode.main() creates the node)
+    # ------------------------------------------------------------------
+
+    def _setup(self):
+        self._tf_buffer   = tf2_ros.Buffer()
+        self._tf_listener = tf2_ros.TransformListener(self._tf_buffer, self)
+
+        self.create_subscription(
+            PoseStamped,
+            GOAL_TOPIC,
+            self._goal_cb,
+            1,
+        )
+        print(f'[DETECT] Subscribed to {GOAL_TOPIC}')
+
+    # ------------------------------------------------------------------
+    # Goal callback — fired by HelloNode's spin thread
+    # ------------------------------------------------------------------
+
+    def _goal_cb(self, msg: PoseStamped):
+        with self._goal_lock:
+            self._latest_goal = msg
+
+    # ------------------------------------------------------------------
+    # Get latest goal in base_link
+    # ------------------------------------------------------------------
+
+    def get_goal_base_link(self) -> 'PoseStamped | None':
+        """Transform the latest camera-frame goal to base_link."""
+        with self._goal_lock:
+            msg = self._latest_goal
+
+        if msg is None:
+            return None
+
+        try:
+            tf = self._tf_buffer.lookup_transform(
+                'base_link',
+                msg.header.frame_id,
+                rclpy.time.Time(),
+            )
+            return do_transform_pose_stamped(msg, tf)
+        except Exception as e:
+            print(f'[DETECT] TF error: {e}')
+            return None
+
+    # ------------------------------------------------------------------
+    # Wait for a valid detection after arriving at a zone
+    # ------------------------------------------------------------------
+
+    def _wait_for_detection(self, timeout: float = DETECTION_TIMEOUT) -> 'PoseStamped | None':
+        print(f'[DETECT] Waiting up to {timeout:.0f}s for detection ...')
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            pose = self.get_goal_base_link()
+            if pose is not None:
+                print(f'[DETECT] Got pose: '
+                      f'x={pose.pose.position.x:.3f}  '
+                      f'y={pose.pose.position.y:.3f}  '
+                      f'z={pose.pose.position.z:.3f}')
+                return pose
+            time.sleep(0.1)
+        print('[DETECT] Timed out — no detection received.')
+        return None
+
+    # ------------------------------------------------------------------
+    # Main pipeline
+    # ------------------------------------------------------------------
 
     def run(self, obj_name: str, dropoff_name: str, smap: dict):
         print(f'\n{"="*52}')
@@ -126,26 +180,21 @@ class FetchNode(hm.HelloNode):
         print(f'  Drop-off : "{dropoff_name}"')
         print(f'{"="*52}\n')
 
-        # ---- resolve config ----
         zone_names = lookup_zones(obj_name, smap)
         dropoff    = get_dropoff(dropoff_name, smap)
 
-        print(f'[CONFIG] Zones to search (in order): {zone_names}')
-        print(f'[CONFIG] Drop-off coords: x={dropoff["x"]}, y={dropoff["y"]}\n')
+        print(f'[CONFIG] Zones: {zone_names}')
+        print(f'[CONFIG] Drop-off: x={dropoff["x"]}, y={dropoff["y"]}\n')
 
-        # ---- stow arm before driving ----
+        self._setup()
         self.stow_the_robot()
 
-        # ---- start Nav2 ----
         nav = Navigator(node=self)
         nav.wait_until_ready()
 
-        # ---- build searcher and grasper once ----
-        searcher = SearchBehavior(self, nav, obj_name)
-        grasper  = GraspPipeline(self)
-        print(f'[SEARCH] YOLO-E loaded. Searching for "{obj_name}".\n')
+        grasper = GraspPipeline(self)
 
-        # ---- search each zone in priority order ----
+        # ---- search each zone ----
         goal_pose     = None
         found_in_zone = None
 
@@ -154,61 +203,55 @@ class FetchNode(hm.HelloNode):
             nav_pt = zone['nav_point']
 
             print(f'[NAV] → zone "{zone_name}"  '
-                  f'(x={nav_pt["x"]:.2f}, y={nav_pt["y"]:.2f}, '
-                  f'yaw={nav_pt["yaw"]:.2f})')
+                  f'(x={nav_pt["x"]:.2f}, y={nav_pt["y"]:.2f}, yaw={nav_pt["yaw"]:.2f})')
 
             result = nav.go_to(nav_pt['x'], nav_pt['y'], nav_pt['yaw'])
-
             if result != NavResult.SUCCEEDED:
-                print(f'[NAV] Could not reach "{zone_name}" ({result}), trying next zone.\n')
+                print(f'[NAV] Could not reach "{zone_name}" ({result}), skipping.\n')
                 continue
 
-            print(f'[NAV] Arrived at "{zone_name}". Starting search ...\n')
-            goal_pose = searcher.search(zone)
+            print(f'[NAV] Arrived at "{zone_name}". Waiting for detection ...\n')
 
+            # Clear stale detection before waiting for a fresh one
+            with self._goal_lock:
+                self._latest_goal = None
+
+            goal_pose = self._wait_for_detection()
             if goal_pose is not None:
                 found_in_zone = zone_name
                 break
 
-            print(f'[SEARCH] "{obj_name}" not found in "{zone_name}".\n')
+            print(f'[DETECT] "{obj_name}" not detected in "{zone_name}".\n')
 
-        # ---- object not found anywhere ----
         if goal_pose is None:
-            print(f'[FAIL] "{obj_name}" was not found in zones: {zone_names}')
+            print(f'[FAIL] "{obj_name}" not found in any zone.')
             nav.shutdown()
             return False
 
-        print(f'\n[FOUND] "{obj_name}" located in zone "{found_in_zone}". Grasping ...\n')
+        print(f'\n[FOUND] Detected in zone "{found_in_zone}". Grasping ...\n')
 
-        # ---- M4: grasp ----
-        success = grasp_object(self, grasper, goal_pose)
+        # ---- M4: grasp (pass live detection function for continuous update) ----
+        success = grasper.grasp(goal_pose, get_goal_fn=self.get_goal_base_link)
         if not success:
             print('[FAIL] Grasp failed.')
             nav.shutdown()
             return False
 
         print('[GRASP] Object secured. Navigating to drop-off ...\n')
-
-        # ---- stow arm for safe transport ----
         self.stow_the_robot()
 
-        # ---- M5a: navigate to drop-off ----
         result = nav.go_to(dropoff['x'], dropoff['y'], dropoff.get('yaw', 0.0))
         if result != NavResult.SUCCEEDED:
-            print(f'[NAV] Could not reach drop-off "{dropoff_name}" ({result}).')
+            print(f'[NAV] Could not reach drop-off ({result}).')
             nav.shutdown()
             return False
 
-        # ---- M5b: place object ----
         place_object(self, dropoff)
-
         nav.shutdown()
         print(f'\n[SUCCESS] "{obj_name}" delivered to "{dropoff_name}".')
         return True
 
     def main(self, obj_name: str, dropoff_name: str, smap: dict):
-        # HelloNode.main() initialises rclpy, creates the node, and starts a
-        # background spin thread — then returns so we can run sequential code.
         hm.HelloNode.main(
             self,
             node_name='fetch_node',
@@ -224,28 +267,22 @@ class FetchNode(hm.HelloNode):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Semantic Fetch — tell Stretch to fetch an object by name.'
+        description='Semantic Fetch — navigation + grasp. '
+                    'Run object_detector_pcd.py separately for detection.'
     )
-    parser.add_argument(
-        'object',
-        help='Object to fetch (must match an entry in semantic_map.yaml). '
-             'Use quotes for multi-word names: "water bottle".'
-    )
-    parser.add_argument(
-        '--dropoff', default='default',
-        help='Drop-off location name (defined in semantic_map.yaml). Default: "default".'
-    )
-    parser.add_argument(
-        '--map', default=SEMANTIC_MAP_PATH,
-        help=f'Path to semantic_map.yaml. Default: {SEMANTIC_MAP_PATH}'
-    )
+    parser.add_argument('object',
+                        help='Object name (must match an entry in semantic_map.yaml)')
+    parser.add_argument('--dropoff', default='default',
+                        help='Drop-off location name (default: "default")')
+    parser.add_argument('--map', default=SEMANTIC_MAP_PATH,
+                        help=f'Path to semantic_map.yaml (default: {SEMANTIC_MAP_PATH})')
     return parser.parse_args()
 
 
 def main():
-    args  = parse_args()
-    smap  = load_semantic_map(args.map)
-    node  = FetchNode()
+    args = parse_args()
+    smap = load_semantic_map(args.map)
+    node = FetchNode()
     try:
         node.main(
             obj_name     = args.object,
