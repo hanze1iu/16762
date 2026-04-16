@@ -56,6 +56,11 @@ MAX_STEPS      = 40     # iterations before giving up
 SETTLE_SEC     = 0.4    # wait after each move for TF to update
 JOINT_TIMEOUT  = 5.0    # seconds to wait for first joint-state message
 
+# Camera lateral offset calibration
+# In base_link: +y = robot's left, -y = robot's right
+# If real object appears 10cm to the RIGHT of gripper aim → offset = -0.10
+GRASP_Y_OFFSET = -0.10
+
 
 # ---------------------------------------------------------------------------
 # GraspPipeline
@@ -179,7 +184,7 @@ class GraspPipeline:
         """
         goal_pos = np.array([
             goal_pose.pose.position.x,
-            goal_pose.pose.position.y,
+            goal_pose.pose.position.y + GRASP_Y_OFFSET,
             goal_pose.pose.position.z,
         ])
         print(f'[GRASP] Target in base_link: x={goal_pos[0]:.3f}  '
