@@ -246,7 +246,6 @@ class FetchNode(hm.HelloNode):
             return False
 
         print('[GRASP] Object secured. Navigating to drop-off ...\n')
-        self.stow_the_robot()
 
         result = nav.go_to(dropoff['x'], dropoff['y'], dropoff.get('yaw', 0.0))
         if result != NavResult.SUCCEEDED:
