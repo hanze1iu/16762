@@ -50,7 +50,7 @@ READY_HEAD = {
 GRIPPER_FRAME  = 'link_grasp_center'
 BASE_FRAME     = 'base_link'
 
-DELTA          = 0.3   # close gripper when within this distance (metres)
+DELTA          = 0.03   # close gripper when within this distance (metres)
 STEP_SIZE      = 0.07   # metres to move per IK step
 SAFETY_X       = -0.03   # stand-off: approach from slightly in front of centroid
 MAX_STEPS      = 70     # iterations before giving up
