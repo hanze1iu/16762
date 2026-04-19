@@ -23,8 +23,8 @@ zones:
   desk1:
     description: ''
     nav_point:
-      x: 3.197
-      y: 0.414
+      x: 2.845
+      y: 0.316
       yaw: 0.0
     orbit_waypoints: []
   desk2:
@@ -39,13 +39,6 @@ zones:
     nav_point:
       x: 3.104
       y: 2.153
-      yaw: 0.0
-    orbit_waypoints: []
-  desk1.1:
-    description: ''
-    nav_point:
-      x: 3.197
-      y: 0.414
       yaw: 0.0
     orbit_waypoints: []
 object_zones:

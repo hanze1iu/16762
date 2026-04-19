@@ -162,10 +162,10 @@ def move_to_configuration(node, q):
         'joint_wrist_pitch': q_pitch,
         'joint_wrist_roll': q_roll
     })
-    # Only move base if displacement is large enough to avoid camera losing sight of object
-    if abs(q_rotation) > 0.1:   # threshold: ~6 degrees
+    # Move base whenever IK requires it (thresholds lowered for fetch use case)
+    if abs(q_rotation) > 0.02:   # ~1 degree
         node.move_to_pose({'rotate_mobile_base': q_rotation})
-    if abs(q_translation) > 0.05:  # threshold: 5 cm
+    if abs(q_translation) > 0.01:  # 1 cm
         node.move_to_pose({'translate_mobile_base': q_translation})
     # TODO: -------------- end ---------------
 
