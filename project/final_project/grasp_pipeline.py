@@ -58,9 +58,9 @@ JOINT_TIMEOUT  = 5.0    # seconds to wait for first joint-state message
 
 # No static calibration offsets — live detection self-corrects (lab3 style).
 # safety_x standoff is applied inside _compute_waypoint (same as lab3).
-GRASP_X_OFFSET = -0.01   # 1cm deeper into object (negative x = further back)
-GRASP_Y_OFFSET = -0.01   # 1cm to the right (negative y = robot's right)
-GRASP_Z_OFFSET =  0.0
+GRASP_X_OFFSET = 0.0
+GRASP_Y_OFFSET = 0.0
+GRASP_Z_OFFSET = 0.0
 
 
 # ---------------------------------------------------------------------------
