@@ -1,0 +1,68 @@
+# ============================================================
+# Semantic Fetch — All Terminal Commands
+# ============================================================
+# Run each command in a separate terminal (T1–T5)
+# Working directory assumed: ~/16762/hanzel/16762/project/final_project
+# ============================================================
+
+
+# T1 — Stretch driver (navigation mode)
+ros2 launch stretch_core stretch_driver.launch.py mode:=navigation
+
+
+# T2 — Depth camera
+ros2 launch stretch_core d435i_low_resolution.launch.py
+
+
+# T3 — Nav2 (original map)
+ros2 launch stretch_nav2 navigation.launch.py map:=final_project/map/ai_maker_space.yaml
+
+# T3 — Nav2 (edited map with walls)
+ros2 launch stretch_nav2 navigation.launch.py map:=final_project/map/ai_maker_space_try.yaml
+
+
+# T4 — Object detector (YOLO-E, publishes to /object_detector/goal_pose)
+cd ~/16762/hanzel/16762/project/final_project
+python3 ../lab3/object_detector_pcd-1.py --queries object_queries.yaml
+
+
+# T5 — Fetch pipeline
+
+# Single task
+python3 fetch.py "water bottle" --dropoff desk1
+python3 fetch.py "cup" --dropoff desk2
+python3 fetch.py "laptop" --dropoff desk3
+
+# Multi-task (same node, sequential)
+python3 fetch.py --task "water bottle" desk2 --task "cup" desk3
+
+
+# ============================================================
+# RViz
+# ============================================================
+
+# Navigation (Nav2 built-in)
+ros2 launch stretch_nav2 navigation.launch.py map:=final_project/map/ai_maker_space.yaml
+# Then open RViz via Nav2 — use "2D Pose Estimate" to set initial pose
+
+# Annotator / full RViz
+rviz2 -d ~/ament_ws/src/stretch_ros2/stretch_description/rviz/stretch_description.rviz
+
+# Semantic map markers (visualize zones + dropoffs in RViz)
+cd ~/16762/hanzel/16762/project/final_project
+python3 semantic_map_visualizer.py
+# In RViz: Add → MarkerArray → topic /semantic_map_markers
+
+
+# ============================================================
+# Useful debug commands
+# ============================================================
+
+# Check what object detector is publishing
+ros2 topic echo /object_detector/goal_pose
+
+# Check joint states
+ros2 topic echo /stretch/joint_states
+
+# Check navigation status
+ros2 topic echo /navigate_to_pose/_action/status

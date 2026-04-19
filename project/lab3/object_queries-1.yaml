@@ -6,7 +6,7 @@ queries:
   # # - black water bottle # reflective metal surface, poor depth values
   # - black coffee mug
   # - pink cat figure
-  - yellow cup
+  - cup
   - white cylinder
   - blue ball
 target: blue ball
