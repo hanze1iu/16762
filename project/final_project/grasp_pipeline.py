@@ -215,7 +215,7 @@ class GraspPipeline:
         STUCK_THRESHOLD = 0.005   # less than 5mm progress = stuck
         STUCK_STEPS     = 3       # force close after this many stuck steps
 
-        LIVE_UPDATE_DIST = 0.15   # freeze live updates when closer than this (z unreliable)
+        LIVE_UPDATE_DIST = 0.20   # freeze live updates when closer than this (z unreliable)
 
         for step in range(MAX_STEPS):
             # Refresh goal from live detector only when far away.
