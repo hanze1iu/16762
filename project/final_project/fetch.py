@@ -92,14 +92,14 @@ def get_dropoff(dropoff_name: str, smap: dict) -> dict:
 PLACE_LIFT_HEIGHT = 0.78   # slightly above table (~80cm) so object clears edge
 
 def place_object(node, dropoff: dict):
+    print('[PLACE] Extending arm 5cm ...')
+    node.move_to_pose({'joint_arm': 0.05}, blocking=True)
+
     print('[PLACE] Lowering to table height ...')
     node.move_to_pose({'joint_lift': PLACE_LIFT_HEIGHT}, blocking=True)
 
     print('[PLACE] Opening gripper ...')
     node.move_to_pose({'gripper_aperture': 0.6}, blocking=True)
-
-    print('[PLACE] Retracting arm ...')
-    node.move_to_pose({'joint_arm': 0.0}, blocking=True)
 
     print('[PLACE] Object placed.')
 

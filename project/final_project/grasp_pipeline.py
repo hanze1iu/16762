@@ -50,8 +50,8 @@ READY_HEAD = {
 GRIPPER_FRAME  = 'link_grasp_center'
 BASE_FRAME     = 'base_link'
 
-DELTA          = 0.01   # close gripper when within this distance (metres)
-STEP_SIZE      = 0.05   # metres to move per IK step
+DELTA          = 0.3   # close gripper when within this distance (metres)
+STEP_SIZE      = 0.07   # metres to move per IK step
 SAFETY_X       = -0.03   # stand-off: approach from slightly in front of centroid
 MAX_STEPS      = 70     # iterations before giving up
 SETTLE_SEC     = 0.4    # wait after each move for TF to update
@@ -60,8 +60,8 @@ JOINT_TIMEOUT  = 5.0    # seconds to wait for first joint-state message
 # No static calibration offsets — live detection self-corrects (lab3 style).
 # safety_x standoff is applied inside _compute_waypoint (same as lab3).
 GRASP_X_OFFSET = -0.01
-GRASP_Y_OFFSET = -0.1
-GRASP_Z_OFFSET = 0.05
+GRASP_Y_OFFSET = -0.7
+GRASP_Z_OFFSET = 0.02
 
 
 # ---------------------------------------------------------------------------
