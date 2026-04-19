@@ -15,10 +15,10 @@ ros2 launch stretch_core d435i_low_resolution.launch.py
 
 
 # T3 — Nav2 (original map)
-ros2 launch stretch_nav2 navigation.launch.py map:=final_project/map/ai_maker_space.yaml
+ros2 launch stretch_nav2 navigation.launch.py map:=/home/hello-robot/16762/hanzel/16762/project/final_project/map/ai_maker_space.yaml
 
 # T3 — Nav2 (edited map with walls)
-ros2 launch stretch_nav2 navigation.launch.py map:=final_project/map/ai_maker_space_try.yaml
+ros2 launch stretch_nav2 navigation.launch.py map:=/home/hello-robot/16762/hanzel/16762/project/final_project/map/ai_maker_space_try.yaml
 
 
 # T4 — Object detector (YOLO-E, publishes to /object_detector/goal_pose)
@@ -42,7 +42,7 @@ python3 fetch.py --task "water bottle" desk2 --task "cup" desk3
 # ============================================================
 
 # Navigation (Nav2 built-in)
-ros2 launch stretch_nav2 navigation.launch.py map:=final_project/map/ai_maker_space.yaml
+ros2 launch stretch_nav2 navigation.launch.py map:=/home/hello-robot/16762/hanzel/16762/project/final_project/map/ai_maker_space.yaml
 # Then open RViz via Nav2 — use "2D Pose Estimate" to set initial pose
 
 # Annotator / full RViz
