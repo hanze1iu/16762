@@ -269,14 +269,19 @@ class FetchNode(hm.HelloNode):
         print(f'\n[SUCCESS] "{obj_name}" delivered to "{dropoff_name}".')
         return True
 
-    def main(self, obj_name: str, dropoff_name: str, smap: dict):
+    def main(self, tasks: list, smap: dict):
         hm.HelloNode.main(
             self,
             node_name='fetch_node',
             node_topic_namespace='fetch_node',
             wait_for_first_pointcloud=False,
         )
-        self.run(obj_name, dropoff_name, smap)
+        for i, (obj_name, dropoff_name) in enumerate(tasks):
+            print(f'\n[TASK {i+1}/{len(tasks)}] "{obj_name}" → "{dropoff_name}"')
+            success = self.run(obj_name, dropoff_name, smap)
+            if not success:
+                print(f'[TASK {i+1}] Failed — stopping task queue.')
+                break
 
 
 # ---------------------------------------------------------------------------
@@ -288,10 +293,13 @@ def parse_args():
         description='Semantic Fetch — navigation + grasp. '
                     'Run object_detector_pcd.py separately for detection.'
     )
-    parser.add_argument('object',
-                        help='Object name (must match an entry in semantic_map.yaml)')
+    parser.add_argument('object', nargs='?', default=None,
+                        help='Object name (single-task mode)')
     parser.add_argument('--dropoff', default='default',
-                        help='Drop-off location name (default: "default")')
+                        help='Drop-off location name (single-task mode, default: "default")')
+    parser.add_argument('--task', metavar=('OBJECT', 'DROPOFF'), nargs=2,
+                        action='append', dest='tasks',
+                        help='Multi-task mode: --task "water bottle" desk2 --task "cup" desk3')
     parser.add_argument('--map', default=SEMANTIC_MAP_PATH,
                         help=f'Path to semantic_map.yaml (default: {SEMANTIC_MAP_PATH})')
     return parser.parse_args()
@@ -300,13 +308,18 @@ def parse_args():
 def main():
     args = parse_args()
     smap = load_semantic_map(args.map)
+
+    # Build task list
+    if args.tasks:
+        tasks = [(obj, dropoff) for obj, dropoff in args.tasks]
+    elif args.object:
+        tasks = [(args.object, args.dropoff)]
+    else:
+        sys.exit('[ERROR] Specify an object or use --task OBJECT DROPOFF.')
+
     node = FetchNode()
     try:
-        node.main(
-            obj_name     = args.object,
-            dropoff_name = args.dropoff,
-            smap         = smap,
-        )
+        node.main(tasks=tasks, smap=smap)
     except KeyboardInterrupt:
         print('\n[INTERRUPTED] Fetch cancelled.')
 
