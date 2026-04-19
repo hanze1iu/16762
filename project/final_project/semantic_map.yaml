@@ -38,7 +38,7 @@ zones:
     description: ''
     nav_point:
       x: 3.704
-      y: 3.4
+      y: 3.3
       yaw: 0.0
     orbit_waypoints: []
 object_zones:
