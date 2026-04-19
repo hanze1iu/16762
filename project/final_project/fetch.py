@@ -191,7 +191,7 @@ class FetchNode(hm.HelloNode):
     # Main pipeline
     # ------------------------------------------------------------------
 
-    def run(self, obj_name: str, dropoff_name: str, smap: dict):
+    def run(self, obj_name: str, dropoff_name: str, smap: dict, stow: bool = True):
         print(f'\n{"="*52}')
         print(f'  Fetching : "{obj_name}"')
         print(f'  Drop-off : "{dropoff_name}"')
@@ -204,7 +204,12 @@ class FetchNode(hm.HelloNode):
         print(f'[CONFIG] Drop-off: x={dropoff["x"]}, y={dropoff["y"]}\n')
 
         self._setup()
-        self.stow_the_robot()
+        if stow:
+            self.stow_the_robot()
+        else:
+            # Keep lift at drop-off height, just retract arm and close gripper
+            print('[INIT] Retracting arm for next task ...')
+            self.move_to_pose({'joint_arm': 0.0, 'gripper_aperture': 0.8}, blocking=True)
 
         nav = Navigator(node=self)
         nav.wait_until_ready()
@@ -278,7 +283,7 @@ class FetchNode(hm.HelloNode):
         )
         for i, (obj_name, dropoff_name) in enumerate(tasks):
             print(f'\n[TASK {i+1}/{len(tasks)}] "{obj_name}" → "{dropoff_name}"')
-            success = self.run(obj_name, dropoff_name, smap)
+            success = self.run(obj_name, dropoff_name, smap, stow=(i == 0))
             if not success:
                 print(f'[TASK {i+1}] Failed — stopping task queue.')
                 break
