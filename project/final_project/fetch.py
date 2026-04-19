@@ -89,7 +89,7 @@ def get_dropoff(dropoff_name: str, smap: dict) -> dict:
     return dropoffs[dropoff_name]
 
 
-PLACE_LIFT_HEIGHT = 0.85   # slightly above table (~80cm) so object clears edge
+PLACE_LIFT_HEIGHT = 0.78   # slightly above table (~80cm) so object clears edge
 
 def place_object(node, dropoff: dict):
     print('[PLACE] Lowering to table height ...')

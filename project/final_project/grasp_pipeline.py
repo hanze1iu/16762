@@ -58,8 +58,9 @@ JOINT_TIMEOUT  = 5.0    # seconds to wait for first joint-state message
 
 # No static calibration offsets — live detection self-corrects (lab3 style).
 # safety_x standoff is applied inside _compute_waypoint (same as lab3).
-GRASP_Y_OFFSET = 0.0
-GRASP_Z_OFFSET = 0.0
+GRASP_X_OFFSET = -0.01   # 1cm deeper into object (negative x = further back)
+GRASP_Y_OFFSET = -0.01   # 1cm to the right (negative y = robot's right)
+GRASP_Z_OFFSET =  0.0
 
 
 # ---------------------------------------------------------------------------
@@ -187,7 +188,7 @@ class GraspPipeline:
         """
         def _pose_to_goal_pos(pose: PoseStamped) -> np.ndarray:
             return np.array([
-                pose.pose.position.x,
+                pose.pose.position.x + GRASP_X_OFFSET,
                 pose.pose.position.y + GRASP_Y_OFFSET,
                 pose.pose.position.z + GRASP_Z_OFFSET,
             ])
