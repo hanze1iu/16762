@@ -154,6 +154,10 @@ class GraspPipeline:
         diff = safe_goal - gripper_pos
         dist = np.linalg.norm(diff)
 
+        # Use only y,z distance for close-gripper trigger.
+        # x is ignored because the base cannot reliably move backward far enough.
+        dist_yz = np.linalg.norm((safe_goal - gripper_pos)[[1, 2]])
+
         if dist > DELTA:
             waypoint = gripper_pos + (diff / dist) * DELTA
         else:
@@ -163,7 +167,7 @@ class GraspPipeline:
         waypoint[2] = max(waypoint[2], safe_goal[2])
 
         orient = ikpy.utils.geometry.rpy_matrix(0.0, 0.0, 0.0)
-        return waypoint, orient, dist
+        return waypoint, orient, dist_yz
 
     # ------------------------------------------------------------------
     # Public API
