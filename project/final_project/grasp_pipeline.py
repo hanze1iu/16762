@@ -51,6 +51,7 @@ GRIPPER_FRAME  = 'link_grasp_center'
 BASE_FRAME     = 'base_link'
 
 DELTA          = 0.01   # close gripper when within this distance (metres)
+STEP_SIZE      = 0.05   # metres to move per IK step
 SAFETY_X       = -0.03   # stand-off: approach from slightly in front of centroid
 MAX_STEPS      = 70     # iterations before giving up
 SETTLE_SEC     = 0.4    # wait after each move for TF to update
@@ -158,8 +159,8 @@ class GraspPipeline:
         # x is ignored because the base cannot reliably move backward far enough.
         dist_yz = np.linalg.norm((safe_goal - gripper_pos)[[1, 2]])
 
-        if dist > DELTA:
-            waypoint = gripper_pos + (diff / dist) * DELTA
+        if dist > STEP_SIZE:
+            waypoint = gripper_pos + (diff / dist) * STEP_SIZE
         else:
             waypoint = safe_goal
 
