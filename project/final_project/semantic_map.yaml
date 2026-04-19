@@ -39,7 +39,7 @@ zones:
     nav_point:
       x: 3.804
       y: 3.5
-      yaw: 0.0
+      yaw: 1.4
     orbit_waypoints: []
 object_zones:
   water bottle:
