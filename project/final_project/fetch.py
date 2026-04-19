@@ -93,7 +93,7 @@ PLACE_LIFT_HEIGHT = 0.78   # slightly above table (~80cm) so object clears edge
 
 def place_object(node, dropoff: dict):
     print('[PLACE] Extending arm 5cm ...')
-    node.move_to_pose({'joint_arm': 0.05}, blocking=True)
+    node.move_to_pose({'joint_arm': 0.10}, blocking=True)
 
     print('[PLACE] Lowering to table height ...')
     node.move_to_pose({'joint_lift': PLACE_LIFT_HEIGHT}, blocking=True)
