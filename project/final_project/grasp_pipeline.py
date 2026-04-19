@@ -215,11 +215,13 @@ class GraspPipeline:
         STUCK_THRESHOLD = 0.005   # less than 5mm progress = stuck
         STUCK_STEPS     = 3       # force close after this many stuck steps
 
+        LIVE_UPDATE_DIST = 0.15   # freeze live updates when closer than this (z unreliable)
+
         for step in range(MAX_STEPS):
-            # Refresh goal from live detector (full x/y/z).
-            # The detector only updates its published pose when confidence >= 0.7,
-            # so stale/low-confidence frames are already filtered on the detector side.
-            if get_goal_fn is not None:
+            # Refresh goal from live detector only when far away.
+            # When close (< LIVE_UPDATE_DIST), z becomes unreliable due to arm
+            # occlusion and transparent surface depth failure — freeze target.
+            if get_goal_fn is not None and prev_dist > LIVE_UPDATE_DIST:
                 fresh = get_goal_fn()
                 if fresh is not None:
                     goal_pos = _pose_to_goal_pos(fresh)
