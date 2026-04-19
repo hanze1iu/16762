@@ -15,23 +15,23 @@ dropoffs:
     yaw: 0.0
     description: Desk 2 drop-off
   desk3:
-    x: 3.104
-    y: 2.153
+    x: 3.804
+    y: 3.53
     yaw: 0.0
     description: Desk 3 drop-off
 zones:
   desk1:
     description: ''
     nav_point:
-      x: 2.845
-      y: 0.516
+      x: 3.444
+      y: 0.473
       yaw: 0.0
     orbit_waypoints: []
   desk2:
     description: ''
     nav_point:
       x: 7.333
-      y: -0.437
+      y: 0.0
       yaw: 0.0
     orbit_waypoints: []
   desk3:
