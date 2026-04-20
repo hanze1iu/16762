@@ -30,7 +30,7 @@ zones:
   desk2:
     description: ''
     nav_point:
-      x: 7.10
+      x: 7.00
       y: -0.7
       yaw: -0.4
     orbit_waypoints: []
