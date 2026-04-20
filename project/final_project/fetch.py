@@ -59,7 +59,8 @@ def load_semantic_map(path: str) -> dict:
     return data
 
 
-def lookup_zones(obj_name: str, smap: dict) -> list:
+def lookup_zones(obj_name: str, smap: dict) -> tuple:
+    """Returns (zone_list, grasp_delta)."""
     object_zones = smap.get('object_zones', {})
     if obj_name not in object_zones:
         known = list(object_zones.keys())
@@ -68,7 +69,10 @@ def lookup_zones(obj_name: str, smap: dict) -> list:
             f'        Known objects: {known}\n'
             f'        Add it under object_zones in {SEMANTIC_MAP_PATH}.'
         )
-    return object_zones[obj_name]
+    entry = object_zones[obj_name]
+    zones = entry['zones']
+    grasp_delta = entry.get('grasp_delta', 0.03)
+    return zones, grasp_delta
 
 
 def get_zone(zone_name: str, smap: dict) -> dict:
@@ -197,7 +201,7 @@ class FetchNode(hm.HelloNode):
         print(f'  Drop-off : "{dropoff_name}"')
         print(f'{"="*52}\n')
 
-        zone_names = lookup_zones(obj_name, smap)
+        zone_names, grasp_delta = lookup_zones(obj_name, smap)
         dropoff    = get_dropoff(dropoff_name, smap)
 
         print(f'[CONFIG] Zones: {zone_names}')
@@ -257,7 +261,8 @@ class FetchNode(hm.HelloNode):
         print(f'\n[FOUND] Detected in zone "{found_in_zone}". Grasping ...\n')
 
         # ---- M4: grasp (pass live detection function for continuous update) ----
-        success = grasper.grasp(goal_pose, get_goal_fn=self.get_goal_base_link)
+        print(f'[GRASP] Using grasp_delta={grasp_delta} for "{obj_name}"')
+        success = grasper.grasp(goal_pose, get_goal_fn=self.get_goal_base_link, delta=grasp_delta)
         if not success:
             print('[FAIL] Grasp failed.')
             nav.shutdown()

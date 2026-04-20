@@ -31,7 +31,7 @@ zones:
     description: ''
     nav_point:
       x: 7.333
-      y: -0.7
+      y: -0.9
       yaw: -0.4
     orbit_waypoints: []
   desk3:
@@ -43,8 +43,14 @@ zones:
     orbit_waypoints: []
 object_zones:
   water bottle:
-  - desk1
+    zones:
+    - desk1
+    grasp_delta: 0.03
   cup:
-  - desk2
+    zones:
+    - desk2
+    grasp_delta: 0.00
   laptop:
-  - desk3
+    zones:
+    - desk3
+    grasp_delta: 0.03
