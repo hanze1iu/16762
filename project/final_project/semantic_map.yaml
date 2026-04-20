@@ -49,7 +49,7 @@ object_zones:
   cup:
     zones:
     - desk2
-    grasp_delta: 0.01
+    grasp_delta: 0.00
   laptop:
     zones:
     - desk3
