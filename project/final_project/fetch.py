@@ -205,6 +205,8 @@ class FetchNode(hm.HelloNode):
 
         self._setup()
         if stow:
+            print('[INIT] Retracting arm before stow ...')
+            self.move_to_pose({'joint_arm': 0.0}, blocking=True)
             self.stow_the_robot()
         else:
             # Keep lift at drop-off height, just retract arm and close gripper
