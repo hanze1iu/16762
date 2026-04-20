@@ -174,7 +174,7 @@ class GraspPipeline:
     # Public API
     # ------------------------------------------------------------------
 
-    def grasp(self, goal_pose: PoseStamped, get_goal_fn=None) -> bool:
+    def grasp(self, goal_pose: PoseStamped, get_goal_fn=None, delta: float = DELTA) -> bool:
         """
         Move to the ready pose, then iteratively approach goal_pose and
         close the gripper.
@@ -256,7 +256,7 @@ class GraspPipeline:
                 print('[GRASP] Arm retracted.')
                 return True
 
-            if dist <= DELTA:
+            if dist <= delta:
                 print('[GRASP] Within reach — closing gripper.')
                 self.node.move_to_pose({'gripper_aperture': -0.2}, blocking=True)
                 print('[GRASP] Gripper closed. Retracting arm ...')
