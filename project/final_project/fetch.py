@@ -71,8 +71,9 @@ def lookup_zones(obj_name: str, smap: dict) -> tuple:
         )
     entry = object_zones[obj_name]
     zones = entry['zones']
-    grasp_delta = entry.get('grasp_delta', 0.03)
-    return zones, grasp_delta
+    grasp_delta    = entry.get('grasp_delta', 0.03)
+    grasp_z_offset = entry.get('grasp_z_offset', None)   # None = use pipeline default
+    return zones, grasp_delta, grasp_z_offset
 
 
 def get_zone(zone_name: str, smap: dict) -> dict:
@@ -201,7 +202,7 @@ class FetchNode(hm.HelloNode):
         print(f'  Drop-off : "{dropoff_name}"')
         print(f'{"="*52}\n')
 
-        zone_names, grasp_delta = lookup_zones(obj_name, smap)
+        zone_names, grasp_delta, grasp_z_offset = lookup_zones(obj_name, smap)
         dropoff    = get_dropoff(dropoff_name, smap)
 
         print(f'[CONFIG] Zones: {zone_names}')
@@ -261,8 +262,9 @@ class FetchNode(hm.HelloNode):
         print(f'\n[FOUND] Detected in zone "{found_in_zone}". Grasping ...\n')
 
         # ---- M4: grasp (pass live detection function for continuous update) ----
-        print(f'[GRASP] Using grasp_delta={grasp_delta} for "{obj_name}"')
-        success = grasper.grasp(goal_pose, get_goal_fn=self.get_goal_base_link, delta=grasp_delta)
+        print(f'[GRASP] Using grasp_delta={grasp_delta}, z_offset={grasp_z_offset} for "{obj_name}"')
+        success = grasper.grasp(goal_pose, get_goal_fn=self.get_goal_base_link,
+                                delta=grasp_delta, z_offset=grasp_z_offset)
         if not success:
             print('[FAIL] Grasp failed.')
             nav.shutdown()

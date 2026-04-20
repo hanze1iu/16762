@@ -174,7 +174,7 @@ class GraspPipeline:
     # Public API
     # ------------------------------------------------------------------
 
-    def grasp(self, goal_pose: PoseStamped, get_goal_fn=None, delta: float = DELTA) -> bool:
+    def grasp(self, goal_pose: PoseStamped, get_goal_fn=None, delta: float = DELTA, z_offset=None) -> bool:
         """
         Move to the ready pose, then iteratively approach goal_pose and
         close the gripper.
@@ -191,11 +191,13 @@ class GraspPipeline:
         -------
         bool — True if gripper was closed on the object, False on failure.
         """
+        z_off = z_offset if z_offset is not None else GRASP_Z_OFFSET
+
         def _pose_to_goal_pos(pose: PoseStamped) -> np.ndarray:
             return np.array([
                 pose.pose.position.x + GRASP_X_OFFSET,
                 pose.pose.position.y + GRASP_Y_OFFSET,
-                pose.pose.position.z + GRASP_Z_OFFSET,
+                pose.pose.position.z + z_off,
             ])
 
         goal_pos = _pose_to_goal_pos(goal_pose)

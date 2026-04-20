@@ -50,6 +50,7 @@ object_zones:
     zones:
     - desk2
     grasp_delta: 0.00
+    grasp_z_offset: -0.04
   laptop:
     zones:
     - desk3
