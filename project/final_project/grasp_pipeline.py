@@ -61,7 +61,7 @@ JOINT_TIMEOUT  = 5.0    # seconds to wait for first joint-state message
 # safety_x standoff is applied inside _compute_waypoint (same as lab3).
 GRASP_X_OFFSET = -0.01
 GRASP_Y_OFFSET = -0.07
-GRASP_Z_OFFSET = 0.02
+GRASP_Z_OFFSET = 0.00
 
 
 # ---------------------------------------------------------------------------
