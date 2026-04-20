@@ -31,6 +31,7 @@ import rclpy
 import tf2_ros
 from tf2_geometry_msgs import do_transform_pose_stamped
 from geometry_msgs.msg import PoseStamped
+from std_msgs.msg import String
 
 import hello_helpers.hello_misc as hm
 from navigation_utils import Navigator, NavResult
@@ -131,8 +132,9 @@ class FetchNode(hm.HelloNode):
     # ------------------------------------------------------------------
 
     def _setup(self):
-        self._tf_buffer   = tf2_ros.Buffer()
-        self._tf_listener = tf2_ros.TransformListener(self._tf_buffer, self)
+        self._tf_buffer    = tf2_ros.Buffer()
+        self._tf_listener  = tf2_ros.TransformListener(self._tf_buffer, self)
+        self._target_pub   = self.create_publisher(String, '/fetch/target_object', 1)
 
         self.create_subscription(
             PoseStamped,
@@ -217,6 +219,12 @@ class FetchNode(hm.HelloNode):
             # In-task mode: only retract arm, keep lift/wrist/gripper as-is
             print('[INIT] In-task mode — retracting arm only ...')
             self.move_to_pose({'joint_arm': 0.0}, blocking=True)
+
+        # Tell detector which object to look for
+        msg = String()
+        msg.data = obj_name
+        self._target_pub.publish(msg)
+        print(f'[DETECT] Published target → "{obj_name}"')
 
         nav = Navigator(node=self)
         nav.wait_until_ready()

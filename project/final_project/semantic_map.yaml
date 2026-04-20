@@ -45,7 +45,7 @@ object_zones:
   cup:
     zones:
     - desk1
-    grasp_delta: 0.03
+    grasp_delta: 0.01
     grasp_z_offset: 0.00
   water bottle:
     zones:

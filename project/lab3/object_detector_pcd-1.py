@@ -5,6 +5,7 @@ import os.path as osp
 from rclpy.node import Node
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import PoseStamped
+from std_msgs.msg import String
 from cv_bridge import CvBridge, CvBridgeError
 from ultralytics import YOLO
 import detection_utils
@@ -76,6 +77,9 @@ class YOLOEObjectDetector(Node):
         self.goal_pub = self.create_publisher(PoseStamped, '/object_detector/goal_pose', 10)
         self.goal_pose_msg = None
 
+        # Allow fetch.py to dynamically set the target object
+        self.create_subscription(String, '/fetch/target_object', self._target_cb, 1)
+
         # -----------------------------------------------------
 
     def image_callback(self, color_msg, depth_msg, color_cam_info_msg):
@@ -132,6 +136,11 @@ class YOLOEObjectDetector(Node):
 
 
 
+
+    def _target_cb(self, msg: String):
+        self.target_obj = msg.data
+        self.goal_pose_msg = None   # clear stale pose for old target
+        self.get_logger().info(f'[DETECT] Target updated to "{self.target_obj}"')
 
     def get_goal_pose(self, detections, target_idx=0):
         if detections is None or len(detections) == 0:
