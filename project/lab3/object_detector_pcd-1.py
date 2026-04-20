@@ -78,8 +78,10 @@ class YOLOEObjectDetector(Node):
         self.goal_pub = self.create_publisher(PoseStamped, '/object_detector/goal_pose', 10)
         self.goal_pose_msg = None
 
-        # Allow fetch.py to dynamically set the target object
-        self.create_subscription(String, '/fetch/target_object', self._target_cb, 1)
+        # Allow fetch.py to dynamically set the target object (latched)
+        from rclpy.qos import QoSProfile, DurabilityPolicy
+        qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        self.create_subscription(String, '/fetch/target_object', self._target_cb, qos)
 
         # -----------------------------------------------------
 

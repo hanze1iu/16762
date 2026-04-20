@@ -1,13 +1,8 @@
 # object_queries.yaml
 # queries: text prompts passed to YOLO-E set_classes()
-# target:  label used to filter detections (must match one entry in queries)
-#
-# Update target (and restart the detector) when switching fetch objects.
-# Valid targets: water bottle | coffee cup | laptop
+# target is set via --target on the command line when starting the detector
 
 queries:
   - water bottle
   - cup
   - laptop
-
-target: water bottle

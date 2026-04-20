@@ -134,7 +134,9 @@ class FetchNode(hm.HelloNode):
     def _setup(self):
         self._tf_buffer    = tf2_ros.Buffer()
         self._tf_listener  = tf2_ros.TransformListener(self._tf_buffer, self)
-        self._target_pub   = self.create_publisher(String, '/fetch/target_object', 1)
+        from rclpy.qos import QoSProfile, DurabilityPolicy
+        qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        self._target_pub = self.create_publisher(String, '/fetch/target_object', qos)
 
         self.create_subscription(
             PoseStamped,

@@ -22,10 +22,9 @@ ros2 launch stretch_nav2 navigation.launch.py map:=/home/hello-robot/16762/hanze
 
 
 # T4 — Object detector (YOLO-E, publishes to /object_detector/goal_pose)
+# Target is set automatically by fetch.py — no need to specify here
 cd ~/16762/hanzel/16762/project/final_project
-python3 ../lab3/object_detector_pcd-1.py --target "cup"
-python3 ../lab3/object_detector_pcd-1.py --target "water bottle"
-python3 ../lab3/object_detector_pcd-1.py --target "laptop"
+python3 ../lab3/object_detector_pcd-1.py
 
 
 # T5 — Fetch pipeline
