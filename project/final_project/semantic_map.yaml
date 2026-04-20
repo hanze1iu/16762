@@ -31,7 +31,7 @@ zones:
     description: ''
     nav_point:
       x: 7.10
-      y: -0.8
+      y: -0.7
       yaw: -0.4
     orbit_waypoints: []
   desk3:
@@ -50,7 +50,7 @@ object_zones:
     zones:
     - desk2
     grasp_delta: 0.00
-    grasp_z_offset: -0.04
+    grasp_z_offset: -0.1
   laptop:
     zones:
     - desk3
