@@ -45,12 +45,12 @@ object_zones:
   cup:
     zones:
     - desk1
-    grasp_delta: 0.00
+    grasp_delta: 0.03
     grasp_z_offset: 0.00
   water bottle:
     zones:
     - desk2
-    grasp_delta: 0.03
+    grasp_delta: 0.0
   laptop:
     zones:
     - desk3
