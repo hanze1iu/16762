@@ -1,5 +1,6 @@
 import cv2
 import yaml
+import argparse
 import rclpy
 import os.path as osp
 from rclpy.node import Node
@@ -200,14 +201,18 @@ class YOLOEObjectDetector(Node):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--queries', default='object_queries.yaml')
+    parser.add_argument('--target', default=None,
+                        help='Object to detect (overrides yaml target field)')
+    args = parser.parse_args()
+
     rclpy.init()
 
-    # load in the full list of object queries from the yaml file, as well as a target (if specified)
-    with open('object_queries.yaml', 'r') as file:
+    with open(args.queries, 'r') as file:
         config = yaml.safe_load(file)
         obj_queries = config['queries']
-        # read the target object to grasp (optional field in yaml)
-        target_obj = config.get('target', None)
+        target_obj = args.target if args.target else config.get('target', None)
 
     yolo_object_detector = YOLOEObjectDetector(obj_queries, target_obj)
     rclpy.spin(yolo_object_detector)
