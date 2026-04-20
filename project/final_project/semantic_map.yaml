@@ -43,14 +43,8 @@ zones:
     orbit_waypoints: []
 object_zones:
   water bottle:
-    zones:
-    - desk1
-    grasp_delta: 0.03
+  - desk1
   cup:
-    zones:
-    - desk2
-    grasp_delta: 0.00
+  - desk2
   laptop:
-    zones:
-    - desk3
-    grasp_delta: 0.03
+  - desk3

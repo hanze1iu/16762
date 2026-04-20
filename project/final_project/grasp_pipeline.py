@@ -61,7 +61,7 @@ JOINT_TIMEOUT  = 5.0    # seconds to wait for first joint-state message
 # safety_x standoff is applied inside _compute_waypoint (same as lab3).
 GRASP_X_OFFSET = -0.01
 GRASP_Y_OFFSET = -0.07
-GRASP_Z_OFFSET = 0.00
+GRASP_Z_OFFSET = 0.02
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +174,7 @@ class GraspPipeline:
     # Public API
     # ------------------------------------------------------------------
 
-    def grasp(self, goal_pose: PoseStamped, get_goal_fn=None, delta: float = DELTA) -> bool:
+    def grasp(self, goal_pose: PoseStamped, get_goal_fn=None) -> bool:
         """
         Move to the ready pose, then iteratively approach goal_pose and
         close the gripper.
@@ -256,7 +256,7 @@ class GraspPipeline:
                 print('[GRASP] Arm retracted.')
                 return True
 
-            if dist <= delta:
+            if dist <= DELTA:
                 print('[GRASP] Within reach — closing gripper.')
                 self.node.move_to_pose({'gripper_aperture': -0.2}, blocking=True)
                 print('[GRASP] Gripper closed. Retracting arm ...')
