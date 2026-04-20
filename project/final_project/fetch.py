@@ -209,9 +209,9 @@ class FetchNode(hm.HelloNode):
             self.move_to_pose({'joint_arm': 0.0}, blocking=True)
             self.stow_the_robot()
         else:
-            # Keep lift at drop-off height, just retract arm and close gripper
-            print('[INIT] Retracting arm for next task ...')
-            self.move_to_pose({'joint_arm': 0.0, 'gripper_aperture': 0.8}, blocking=True)
+            # In-task mode: only retract arm, keep lift/wrist/gripper as-is
+            print('[INIT] In-task mode — retracting arm only ...')
+            self.move_to_pose({'joint_arm': 0.0}, blocking=True)
 
         nav = Navigator(node=self)
         nav.wait_until_ready()
@@ -276,7 +276,7 @@ class FetchNode(hm.HelloNode):
         print(f'\n[SUCCESS] "{obj_name}" delivered to "{dropoff_name}".')
         return True
 
-    def main(self, tasks: list, smap: dict):
+    def main(self, tasks: list, smap: dict, intask: bool = False):
         hm.HelloNode.main(
             self,
             node_name='fetch_node',
@@ -285,7 +285,8 @@ class FetchNode(hm.HelloNode):
         )
         for i, (obj_name, dropoff_name) in enumerate(tasks):
             print(f'\n[TASK {i+1}/{len(tasks)}] "{obj_name}" → "{dropoff_name}"')
-            success = self.run(obj_name, dropoff_name, smap, stow=(i == 0))
+            stow = (i == 0) and not intask
+            success = self.run(obj_name, dropoff_name, smap, stow=stow)
             if not success:
                 print(f'[TASK {i+1}] Failed — stopping task queue.')
                 break
@@ -307,6 +308,8 @@ def parse_args():
     parser.add_argument('--task', metavar=('OBJECT', 'DROPOFF'), nargs=2,
                         action='append', dest='tasks',
                         help='Multi-task mode: --task "water bottle" desk2 --task "cup" desk3')
+    parser.add_argument('--intask', action='store_true',
+                        help='In-task mode: skip stow, retract arm only')
     parser.add_argument('--map', default=SEMANTIC_MAP_PATH,
                         help=f'Path to semantic_map.yaml (default: {SEMANTIC_MAP_PATH})')
     return parser.parse_args()
@@ -326,7 +329,7 @@ def main():
 
     node = FetchNode()
     try:
-        node.main(tasks=tasks, smap=smap)
+        node.main(tasks=tasks, smap=smap, intask=args.intask)
     except KeyboardInterrupt:
         print('\n[INTERRUPTED] Fetch cancelled.')
 

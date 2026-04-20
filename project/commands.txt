@@ -27,14 +27,26 @@ python3 ../lab3/object_detector_pcd-1.py --queries object_queries.yaml
 
 
 # T5 — Fetch pipeline
+# cd ~/16762/hanzel/16762/project/final_project first
 
-# Single task
+# Single task — start mode (arm retract → full stow → navigate)
 python3 fetch.py "water bottle" --dropoff desk1
 python3 fetch.py "cup" --dropoff desk2
 python3 fetch.py "laptop" --dropoff desk3
 
+# Single task — in-task mode (arm retract only, skip stow)
+python3 fetch.py "water bottle" --dropoff desk1 --intask
+python3 fetch.py "cup" --dropoff desk2 --intask
+python3 fetch.py "laptop" --dropoff desk3 --intask
+
 # Multi-task (same node, sequential)
-python3 fetch.py --task "water bottle" desk2 --task "cup" desk3
+# - Task 1: arm retract → full stow → navigate
+# - Task 2+: arm retract only → navigate (keep lift/wrist as-is)
+python3 fetch.py --task "water bottle" desk1 --task "cup" desk2
+python3 fetch.py --task "water bottle" desk1 --task "cup" desk2 --task "laptop" desk3
+
+# Multi-task — in-task mode (all tasks skip stow)
+python3 fetch.py --intask --task "water bottle" desk1 --task "cup" desk2
 
 
 # ============================================================
