@@ -42,15 +42,15 @@ zones:
       yaw: 1.4
     orbit_waypoints: []
 object_zones:
-  water bottle:
-    zones:
-    - desk1
-    grasp_delta: 0.03
   cup:
     zones:
-    - desk2
+    - desk1
     grasp_delta: 0.00
-    grasp_z_offset: -0.1
+    grasp_z_offset: 0.00
+  water bottle:
+    zones:
+    - desk2
+    grasp_delta: 0.03
   laptop:
     zones:
     - desk3
